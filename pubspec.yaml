@@ -1,0 +1,37 @@
+name: app_dane
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.5.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_dotenv: ^5.1.0
+  mapbox_search: ^4.3.1
+  mapbox_maps_flutter: ^2.10.0
+  http: ^1.1.0
+  excel: ^4.0.3
+  path_provider: ^2.1.1
+  permission_handler: ^11.0.1
+  oauth2: ^2.0.2
+  url_launcher: ^6.2.4
+  shared_preferences: ^2.2.2
+  rive: ^0.13.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - .env
+    - assets/template.xlsx
+    - assets/intro.riv
+    - assets/intro2.riv

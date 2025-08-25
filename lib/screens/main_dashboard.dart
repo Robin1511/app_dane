@@ -16,6 +16,25 @@ class MainDashboard extends StatefulWidget {
 class _MainDashboardState extends State<MainDashboard> {
   final ThemeService _themeService = ThemeService();
 
+  @override
+  void initState() {
+    super.initState();
+    // Écouter les changements de thème
+    _themeService.addListener(_onThemeChanged);
+  }
+
+  @override
+  void dispose() {
+    _themeService.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   void _showDrawer() {
     showModalBottomSheet(
       context: context,
@@ -195,24 +214,7 @@ class _MainDashboardState extends State<MainDashboard> {
       // Navigation vers le calendrier
       Navigator.push(
         context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              CalendarScreen(isDarkMode: _themeService.isDarkMode),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(1.0, 0.0);
-            const end = Offset.zero;
-            const curve = Curves.ease;
-
-            var tween = Tween(begin: begin, end: end).chain(
-              CurveTween(curve: curve),
-            );
-
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-        ),
+        MaterialPageRoute(builder: (context) => const CalendarScreen()),
       );
     } else if (cardType == 'contacts') {
       // Navigation vers l'app de mail
@@ -266,99 +268,94 @@ class _MainDashboardState extends State<MainDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _themeService,
-      builder: (context, child) {
-        return Scaffold(
-          backgroundColor: _themeService.isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey[50],
-          appBar: AppBar(
-            title: Text(
-              "Dashboard",
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: _themeService.textColor,
-                  ),
-            ),
-            backgroundColor: _themeService.isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey[50],
-            elevation: 0,
-            centerTitle: false,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GestureDetector(
-                  onTap: _showNotifications,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.notifications_outlined,
-                      color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
-                      size: 22,
-                    ),
-                  ),
-                ),
+    return Scaffold(
+      backgroundColor: _themeService.isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey[50],
+      appBar: AppBar(
+        title: Text(
+          "Dashboard",
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _themeService.textColor,
               ),
-            ],
-            leading: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: GestureDetector(
-                onTap: _showDrawer,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.menu_rounded,
-                    color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
-                  ),
+        ),
+        backgroundColor: _themeService.isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey[50],
+        elevation: 0,
+        centerTitle: false,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GestureDetector(
+              onTap: _showNotifications,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.notifications_outlined,
+                  color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
+                  size: 22,
                 ),
               ),
             ),
           ),
-          body: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                Text(
-                  "Mes Applications",
-                  style: TextStyle(
-                    color: _themeService.textColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 24,
+        ],
+        leading: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: GestureDetector(
+            onTap: _showDrawer,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: _buildGrid(),
-                ),
-              ],
+                ],
+              ),
+              child: Icon(
+                Icons.menu_rounded,
+                color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
+              ),
             ),
           ),
-        );
-      },
+        ),
+      ),
+      body: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            Text(
+              "Mes Applications",
+              style: TextStyle(
+                color: _themeService.textColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 24,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: _buildGrid(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

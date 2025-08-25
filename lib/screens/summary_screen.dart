@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/settings_button.dart';
 import '../services/excel_export_service.dart';
 import 'main_dashboard.dart';
+import '../services/theme_service.dart'; // Ajouter l'import pour ThemeService
 
 class TableItem {
   String descriptif;
@@ -86,14 +87,55 @@ class SummaryScreen extends StatefulWidget {
 
 class _SummaryScreenState extends State<SummaryScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _isDarkMode = false;
   List<MainTitle> _mainTitles = [];
   Map<String, double> _adjustments = {}; // Stockage des ajustements
+  bool _isDisposed = false; // Flag pour éviter les erreurs après dispose
+  late ThemeService _themeService; // Restaurer le ThemeService
+  bool _isDarkMode = false; // Variable locale pour le thème
 
   @override
   void initState() {
     super.initState();
+    _themeService = ThemeService();
     _isDarkMode = widget.isDarkMode;
+    
+    // Écouter les changements de thème de manière sécurisée
+    _themeService.addListener(_onThemeChanged);
+    
+    // Forcer la reconstruction immédiate pour éviter le flash
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isDisposed && mounted) {
+        _safeSetState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    // Retirer le listener de manière sécurisée
+    try {
+      _themeService.removeListener(_onThemeChanged);
+    } catch (e) {
+      // Ignorer les erreurs si le service est déjà disposé
+    }
+    super.dispose();
+  }
+
+  // Méthode helper pour setState sécurisé
+  void _safeSetState(VoidCallback fn) {
+    if (!_isDisposed && mounted) {
+      setState(fn);
+    }
+  }
+
+  // Gestionnaire de changement de thème sécurisé
+  void _onThemeChanged() {
+    if (!_isDisposed && mounted) {
+      _safeSetState(() {
+        _isDarkMode = _themeService.isDarkMode;
+      });
+    }
   }
 
   void _addMainTitle() {
@@ -152,7 +194,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ElevatedButton(
             onPressed: () {
               if (controller.text.trim().isNotEmpty) {
-                setState(() {
+                _safeSetState(() {
                   _mainTitles.add(MainTitle(name: controller.text.trim()));
                 });
                 Navigator.pop(context);
@@ -205,7 +247,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ElevatedButton(
             onPressed: () {
               if (controller.text.trim().isNotEmpty) {
-                setState(() {
+                _safeSetState(() {
                   _mainTitles[mainIndex].subTitles.add(
                     SubTitle(name: controller.text.trim()),
                   );
@@ -674,7 +716,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
   void _applyDeduction(String fromKey, String toKey) {
     double fromAmount = _getTotalFromKey(fromKey);
     
-    setState(() {
+    _safeSetState(() {
       // Stocker l'ajustement
       if (_adjustments.containsKey(toKey)) {
         _adjustments[toKey] = _adjustments[toKey]! - fromAmount;
@@ -773,17 +815,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
           children: ['m2', 'm3', 'mL', 'U'].map((unit) {
             return InkWell(
               onTap: () {
-                setState(() {
-                  item.unite = unit;
-                  if (unit != 'm3') item.hauteur = 0;
-                  if (unit == 'U') {
-                    item.longueur = 0;
-                    item.largeur = 0;
-                  }
-                  if (unit == 'mL') {
-                    item.largeur = 0;
-                  }
-                });
+                if (!_isDisposed && mounted) {
+                  _safeSetState(() {
+                    item.unite = unit;
+                    if (unit != 'm3') item.hauteur = 0;
+                    if (unit == 'U') {
+                      item.longueur = 0;
+                      item.largeur = 0;
+                    }
+                    if (unit == 'mL') {
+                      item.largeur = 0;
+                    }
+                  });
+                }
                 Navigator.pop(context);
               },
               child: Container(
@@ -820,162 +864,171 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: AppBar(
-        backgroundColor: _isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: _isDarkMode ? Colors.white : Colors.black,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          widget.title.toUpperCase(),
-          style: TextStyle(
-            color: _isDarkMode ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        actions: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Bouton Home pour retourner au dashboard
-              Container(
-                margin: const EdgeInsets.only(right: 8, top: 8),
-                decoration: BoxDecoration(
-                  color: _isDarkMode ? Colors.grey[800] : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.home_rounded,
-                    color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFFE91E63),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const MainDashboard()),
-                      (Route<dynamic> route) => false,
-                    );
-                  },
-                  tooltip: 'Retour au dashboard',
-                ),
+    // Couleur de fond par défaut pour éviter le flash
+    final backgroundColor = _isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF5F7FA);
+    
+    return Container(
+      color: backgroundColor,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        color: backgroundColor,
+        child: Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: _isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back,
+                color: _isDarkMode ? Colors.white : Colors.black,
               ),
-              Container(
-                margin: const EdgeInsets.only(top: 8, right: 8),
-                child: IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: Text(
+              widget.title.toUpperCase(),
+              style: TextStyle(
+                color: _isDarkMode ? Colors.white : Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            actions: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Bouton Home pour retourner au dashboard
+                  Container(
+                    margin: const EdgeInsets.only(right: 8, top: 8),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: _isDarkMode 
-                          ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                          : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
+                      color: _isDarkMode ? Colors.grey[800] : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.calculate, color: Colors.white, size: 20),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.home_rounded,
+                        color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFFE91E63),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const MainDashboard()),
+                          (Route<dynamic> route) => false,
+                        );
+                      },
+                      tooltip: 'Retour au dashboard',
+                    ),
                   ),
-                  onPressed: _showCalculatorDialog,
-                ),
-              ),
-              SettingsButton(
-                isDarkMode: _isDarkMode,
-                onPressed: () {
-                  _scaffoldKey.currentState?.openEndDrawer();
-                },
+                  Container(
+                    margin: const EdgeInsets.only(top: 8, right: 8),
+                    child: IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: _isDarkMode 
+                              ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
+                              : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.calculate, color: Colors.white, size: 20),
+                      ),
+                      onPressed: _showCalculatorDialog,
+                    ),
+                  ),
+                  SettingsButton(
+                    isDarkMode: _isDarkMode,
+                    onPressed: () {
+                      _scaffoldKey.currentState?.openEndDrawer();
+                    },
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
-      endDrawer: _buildSidebar(),
-      body: Container(
-        decoration: BoxDecoration(
-          color: _isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF5F7FA),
-        ),
-        child: Column(
-          children: [
-            // Bouton d'ajout de titre principal
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8.0, 20.0, 8.0, 20.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _addMainTitle,
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text(
-                    'Ajouter un titre',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
+          endDrawer: _buildSidebar(),
+          body: Container(
+            color: backgroundColor,
+            child: Column(
+              children: [
+                // Bouton d'ajout de titre principal
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8.0, 20.0, 8.0, 20.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _addMainTitle,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text(
+                        'Ajouter un titre',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                
+                // Liste des titres et tableaux
+                Expanded(
+                  child: _mainTitles.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.table_chart,
+                              size: 80,
+                              color: _isDarkMode ? Colors.white30 : Colors.grey[300],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Aucun tableau créé',
+                              style: TextStyle(
+                                color: _isDarkMode ? Colors.white70 : Colors.grey[600],
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Cliquez sur "Ajouter un titre" pour commencer',
+                              style: TextStyle(
+                                color: _isDarkMode ? Colors.white54 : Colors.grey[500],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Column(
+                          children: [
+                            // Affichage des titres principaux
+                            ...List.generate(_mainTitles.length, (mainIndex) {
+                              final mainTitle = _mainTitles[mainIndex];
+                              return _buildMainTitleWidget(mainTitle, mainIndex);
+                            }),
+                            
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+                ),
+              ],
             ),
-            
-            // Liste des titres et tableaux
-            Expanded(
-              child: _mainTitles.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.table_chart,
-                          size: 80,
-                          color: _isDarkMode ? Colors.white30 : Colors.grey[300],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun tableau créé',
-                          style: TextStyle(
-                            color: _isDarkMode ? Colors.white70 : Colors.grey[600],
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Cliquez sur "Ajouter un titre" pour commencer',
-                          style: TextStyle(
-                            color: _isDarkMode ? Colors.white54 : Colors.grey[500],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Column(
-                      children: [
-                        // Affichage des titres principaux
-                        ...List.generate(_mainTitles.length, (mainIndex) {
-                          final mainTitle = _mainTitles[mainIndex];
-                          return _buildMainTitleWidget(mainTitle, mainIndex);
-                        }),
-                        
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1037,7 +1090,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 padding: const EdgeInsets.only(left: 8),
                                 child: GestureDetector(
                                   onTap: () {
-                                    setState(() {
+                                    _safeSetState(() {
                                       _adjustments.remove(mainTitleKey);
                                     });
                                   },
@@ -1064,7 +1117,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 // Bouton d'ajout direct au tableau
                 IconButton(
                   onPressed: () {
-                    setState(() {
+                    _safeSetState(() {
                       mainTitle.directItems.add(TableItem());
                     });
                   },
@@ -1122,7 +1175,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           children: [
                             TextButton.icon(
                               onPressed: () {
-                                setState(() {
+                                _safeSetState(() {
                                   mainTitle.directItems.add(TableItem());
                                 });
                               },
@@ -1166,7 +1219,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                         ),
                                         ElevatedButton(
                                           onPressed: () {
-                                            setState(() {
+                                            _safeSetState(() {
                                               mainTitle.directItems.clear();
                                             });
                                             Navigator.pop(context);
@@ -1285,7 +1338,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               padding: const EdgeInsets.only(left: 6),
                               child: GestureDetector(
                                 onTap: () {
-                                  setState(() {
+                                  _safeSetState(() {
                                     _adjustments.remove('sub_${mainTitle.name}_${subTitle.name}');
                                   });
                                 },
@@ -1335,7 +1388,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         ),
                         ElevatedButton(
                           onPressed: () {
-                            setState(() {
+                            _safeSetState(() {
                               mainTitle.subTitles.removeAt(subIndex);
                             });
                             Navigator.pop(context);
@@ -1391,7 +1444,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       children: [
                         TextButton.icon(
                           onPressed: () {
-                            setState(() {
+                            _safeSetState(() {
                               subTitle.items.add(TableItem());
                             });
                           },
@@ -1435,7 +1488,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     ),
                                     ElevatedButton(
                                       onPressed: () {
-                                        setState(() {
+                                        _safeSetState(() {
                                           subTitle.items.clear();
                                           subTitle.items.add(TableItem()); // Garder au moins une ligne vide
                                         });
@@ -1509,7 +1562,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
         children: [
           // En-tête du tableau
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
             decoration: BoxDecoration(
               color: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
               borderRadius: const BorderRadius.only(
@@ -1517,95 +1570,130 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 topRight: Radius.circular(12),
               ),
             ),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Text(
-                      'Descriptif',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
+            child: Column(
+              children: [
+                // Instruction discrète pour le swipe
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(
+                        Icons.swipe_left,
+                        size: 14,
+                        color: _isDarkMode ? Colors.white60 : Colors.grey[500],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Swipe pour supprimer',
+                        style: TextStyle(
+                          color: _isDarkMode ? Colors.white60 : Colors.grey[500],
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // En-têtes des colonnes
+                Row(
+                  children: [
+                    // Descriptif - Expanded avec contrainte stricte
+                    Expanded(
+                      flex: 4,
+                      child: Text(
+                        'Descriptif',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isDarkMode ? Colors.white : Colors.black,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'Qté',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
+                    // Quantité - Expanded avec contrainte stricte
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        'Qté',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isDarkMode ? Colors.white : Colors.black,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'U',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
+                    // Unité - Expanded avec contrainte stricte
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        'U',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isDarkMode ? Colors.white : Colors.black,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'L',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
+                    // Longueur - Expanded avec contrainte stricte
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        'L',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isDarkMode ? Colors.white : Colors.black,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'l',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
+                    // Largeur - Expanded avec contrainte stricte
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        'l',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isDarkMode ? Colors.white : Colors.black,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'H',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
+                    // Hauteur - Expanded avec contrainte stricte
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        'H',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isDarkMode ? Colors.white : Colors.black,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'Total',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
+                    // Total - Expanded avec contrainte stricte
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        'Total',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isDarkMode ? Colors.white : Colors.black,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  const SizedBox(width: 40), // Espace pour le bouton supprimer
-                ],
-              ),
+                    // Espace minimal pour le swipe
+                    const SizedBox(width: 4),
+                  ],
+                ),
+              ],
             ),
           ),
           
@@ -1613,7 +1701,86 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ...items.asMap().entries.map((entry) {
             int index = entry.key;
             TableItem item = entry.value;
-            return _buildTableRow(item, index, items);
+            return Dismissible(
+              key: Key('item_$index'),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                decoration: BoxDecoration(
+                  color: Colors.red[400],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.delete,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              confirmDismiss: (direction) async {
+                return await showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      title: Text(
+                        'Supprimer la ligne',
+                        style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
+                      ),
+                      content: Text(
+                        'Voulez-vous vraiment supprimer cette ligne ?',
+                        style: TextStyle(color: _isDarkMode ? Colors.white70 : Colors.black87),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: Text(
+                            'Annuler',
+                            style: TextStyle(color: _isDarkMode ? Colors.white70 : Colors.grey[600]),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[600],
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Supprimer', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              onDismissed: (direction) {
+                // Vérifier que l'index est valide
+                if (index >= 0 && index < items.length) {
+                  // Supprimer immédiatement l'élément de la liste
+                  _safeSetState(() {
+                    items.removeAt(index);
+                  });
+                  
+                  // Afficher le SnackBar avec option d'annulation
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ligne supprimée'),
+                      action: SnackBarAction(
+                        label: 'Annuler',
+                        onPressed: () {
+                          // Remettre l'élément à sa position originale
+                          _safeSetState(() {
+                            items.insert(index, item);
+                          });
+                        },
+                      ),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              },
+              child: _buildTableRow(item, index, items),
+            );
           }).toList(),
         ],
       ),
@@ -1622,7 +1789,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   Widget _buildTableRow(TableItem item, int index, List<TableItem> items) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -1631,266 +1798,279 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ),
         ),
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            // Descriptif
-            Expanded(
-              flex: 4,
-              child: Container(
-                margin: const EdgeInsets.only(right: 4),
-                child: TextField(
-                  onChanged: (value) => setState(() => item.descriptif = value),
-                  maxLines: null,
-                  style: TextStyle(
-                    color: _isDarkMode ? Colors.white : Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Description...',
-                    hintStyle: TextStyle(
-                      color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
-                      fontSize: 14,
-                    ),
-                    border: InputBorder.none,
-                    isDense: false,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
-                    filled: true,
-                  ),
-                ),
-              ),
-            ),
-            
-            // Quantité
-            Expanded(
-              flex: 2,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: TextField(
-                  onChanged: (value) => setState(() => item.quantite = double.tryParse(value) ?? 0),
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _isDarkMode ? Colors.white : Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: '0',
-                    hintStyle: TextStyle(
-                      color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
-                    ),
-                    border: InputBorder.none,
-                    isDense: false,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                    fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
-                    filled: true,
-                  ),
-                ),
-              ),
-            ),
-            
-            // Unité
-            Expanded(
-              flex: 2,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: GestureDetector(
-                  onTap: () => _showUniteDialog(item),
-                  child: Container(
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            item.unite,
-                            style: TextStyle(
-                              color: _isDarkMode ? Colors.white : Colors.black,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.keyboard_arrow_down,
-                          color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            
-            // Longueur (toujours visible)
-            Expanded(
-              flex: 2,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: item.unite != 'U' 
-                  ? TextField(
-                      onChanged: (value) => setState(() => item.longueur = double.tryParse(value) ?? 0),
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: '0',
-                        hintStyle: TextStyle(
-                          color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
-                        ),
-                        border: InputBorder.none,
-                        isDense: false,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                        fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
-                        filled: true,
-                      ),
-                    )
-                  : Container(
-                      height: 40,
-                      alignment: Alignment.center,
-                      child: Text(
-                        '-',
-                        style: TextStyle(
-                          color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-              ),
-            ),
-            
-            // Largeur (toujours visible)
-            Expanded(
-              flex: 2,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: item.unite != 'U' && item.unite != 'mL'
-                  ? TextField(
-                      onChanged: (value) => setState(() => item.largeur = double.tryParse(value) ?? 0),
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: '0',
-                        hintStyle: TextStyle(
-                          color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
-                        ),
-                        border: InputBorder.none,
-                        isDense: false,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                        fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
-                        filled: true,
-                      ),
-                    )
-                  : Container(
-                      height: 40,
-                      alignment: Alignment.center,
-                      child: Text(
-                        '-',
-                        style: TextStyle(
-                          color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-              ),
-            ),
-            
-            // Hauteur (toujours visible)
-            Expanded(
-              flex: 2,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: item.unite == 'm3' 
-                  ? TextField(
-                      onChanged: (value) => setState(() => item.hauteur = double.tryParse(value) ?? 0),
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: '0',
-                        hintStyle: TextStyle(
-                          color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
-                        ),
-                        border: InputBorder.none,
-                        isDense: false,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                        fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
-                        filled: true,
-                      ),
-                    )
-                  : Container(
-                      height: 40,
-                      alignment: Alignment.center,
-                      child: Text(
-                        '-',
-                        style: TextStyle(
-                          color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-              ),
-            ),
-            
-            // Total
-            Expanded(
-              flex: 2,
-              child: Container(
-                margin: const EdgeInsets.only(left: 4),
-                height: 40,
-                alignment: Alignment.center,
-                child: Text(
-                  item.total.toStringAsFixed(2),
-                  style: TextStyle(
-                    color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            
-            // Bouton supprimer
-            SizedBox(
-              width: 40,
-              child: IconButton(
-                onPressed: () {
-                  setState(() {
-                    items.removeAt(index);
-                  });
+      child: Row(
+        children: [
+          // Descriptif - Flexible avec contrainte
+          Flexible(
+            flex: 4,
+            child: Container(
+              margin: const EdgeInsets.only(right: 2),
+              child: TextField(
+                onChanged: (value) {
+                  if (!_isDisposed && mounted) {
+                    _safeSetState(() {
+                      item.descriptif = value;
+                    });
+                  }
                 },
-                icon: Icon(
-                  Icons.delete_outline,
-                  color: Colors.red[400],
-                  size: 20,
+                maxLines: null,
+                style: TextStyle(
+                  color: _isDarkMode ? Colors.white : Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
                 ),
-                tooltip: 'Supprimer',
+                decoration: InputDecoration(
+                  hintText: 'Description...',
+                  hintStyle: TextStyle(
+                    color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                    fontSize: 14,
+                  ),
+                  border: InputBorder.none,
+                  isDense: false,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                  filled: true,
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          
+          // Quantité - Flexible avec contrainte
+          Flexible(
+            flex: 1,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              child: TextField(
+                onChanged: (value) {
+                  if (!_isDisposed && mounted) {
+                    _safeSetState(() {
+                      item.quantite = double.tryParse(value) ?? 0;
+                    });
+                  }
+                },
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _isDarkMode ? Colors.white : Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: '0',
+                  hintStyle: TextStyle(
+                    color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                  ),
+                  border: InputBorder.none,
+                  isDense: false,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                  fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                  filled: true,
+                ),
+              ),
+            ),
+          ),
+          
+          // Unité - Flexible avec contrainte
+          Flexible(
+            flex: 1,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              child: GestureDetector(
+                onTap: () => _showUniteDialog(item),
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          item.unite,
+                          style: TextStyle(
+                            color: _isDarkMode ? Colors.white : Colors.black,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 1),
+                      Icon(
+                        Icons.keyboard_arrow_down,
+                        color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        size: 14,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Longueur - Flexible avec contrainte
+          Flexible(
+            flex: 1,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              child: item.unite != 'U' 
+                ? TextField(
+                    onChanged: (value) {
+                      if (!_isDisposed && mounted) {
+                        _safeSetState(() {
+                          item.longueur = double.tryParse(value) ?? 0;
+                        });
+                      }
+                    },
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _isDarkMode ? Colors.white : Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '0',
+                      hintStyle: TextStyle(
+                        color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                      ),
+                      border: InputBorder.none,
+                      isDense: false,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                      filled: true,
+                    ),
+                  )
+                : Container(
+                    height: 40,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '-',
+                      style: TextStyle(
+                        color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+            ),
+          ),
+          
+          // Largeur - Flexible avec contrainte
+          Flexible(
+            flex: 1,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              child: item.unite != 'U' && item.unite != 'mL'
+                ? TextField(
+                    onChanged: (value) {
+                      if (!_isDisposed && mounted) {
+                        _safeSetState(() {
+                          item.largeur = double.tryParse(value) ?? 0;
+                        });
+                      }
+                    },
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _isDarkMode ? Colors.white : Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '0',
+                      hintStyle: TextStyle(
+                        color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                      ),
+                      border: InputBorder.none,
+                      isDense: false,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                      filled: true,
+                    ),
+                  )
+                : Container(
+                    height: 40,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '-',
+                      style: TextStyle(
+                        color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+            ),
+          ),
+          
+          // Hauteur - Flexible avec contrainte
+          Flexible(
+            flex: 1,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              child: item.unite == 'm3' 
+                ? TextField(
+                    onChanged: (value) {
+                      if (!_isDisposed && mounted) {
+                        _safeSetState(() {
+                          item.hauteur = double.tryParse(value) ?? 0;
+                        });
+                      }
+                    },
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _isDarkMode ? Colors.white : Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '0',
+                      hintStyle: TextStyle(
+                        color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                      ),
+                      border: InputBorder.none,
+                      isDense: false,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                      filled: true,
+                    ),
+                  )
+                : Container(
+                    height: 40,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '-',
+                      style: TextStyle(
+                        color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+            ),
+          ),
+          
+          // Total - Flexible avec contrainte
+          Flexible(
+            flex: 1,
+            child: Container(
+              margin: const EdgeInsets.only(left: 1),
+              height: 40,
+              alignment: Alignment.center,
+              child: Text(
+                item.total.toStringAsFixed(2),
+                style: TextStyle(
+                  color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          
+          // Espace minimal pour le swipe
+          const SizedBox(width: 4),
+        ],
       ),
     );
   }
@@ -1919,7 +2099,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {
+              _safeSetState(() {
                 _mainTitles.removeAt(index);
               });
               Navigator.pop(context);
@@ -1980,10 +2160,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   _buildSidebarItem(
                     icon: _isDarkMode ? Icons.light_mode : Icons.dark_mode,
                     title: 'Dark Mode',
-                    onTap: () {
-                      setState(() {
-                        _isDarkMode = !_isDarkMode;
-                      });
+                    onTap: () async {
+                      await _themeService.toggleTheme();
                       Navigator.of(context).pop();
                     },
                   ),
@@ -2085,7 +2263,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             ),
                             ElevatedButton(
                               onPressed: () {
-                                setState(() {
+                                _safeSetState(() {
                                   _adjustments.clear();
                                 });
                                 Navigator.pop(context);

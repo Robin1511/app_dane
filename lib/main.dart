@@ -28,6 +28,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeService = ThemeService();
+    
     return MaterialApp(
       title: 'App',
       debugShowCheckedModeBanner: false,
@@ -38,15 +40,15 @@ class MyApp extends StatelessWidget {
           seedColor: const Color(0xFF2196F3),
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-        appBarTheme: const AppBarTheme(
+        scaffoldBackgroundColor: themeService.backgroundColor,
+        appBarTheme: AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
           systemOverlayStyle: SystemUiOverlayStyle.dark,
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white,
+          fillColor: themeService.surfaceColor,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,

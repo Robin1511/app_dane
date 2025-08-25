@@ -83,17 +83,20 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: _artboard == null 
-          ? _buildFallbackContent()
-          : SizedBox(
-              width: double.infinity,
-              height: double.infinity,
-              child: Rive(
-                artboard: _artboard!,
-                fit: BoxFit.cover,
+      body: Container(
+        color: Colors.black,
+        child: Center(
+          child: _artboard == null 
+            ? _buildFallbackContent()
+            : SizedBox(
+                width: double.infinity,
+                height: double.infinity,
+                child: Rive(
+                  artboard: _artboard!,
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
+        ),
       ),
     );
   }

@@ -35,13 +35,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _adresseError = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Écouter les changements de thème
+    _themeService.addListener(_onThemeChanged);
+  }
+
+  @override
   void dispose() {
+    _themeService.removeListener(_onThemeChanged);
     _referentController.dispose();
     _travauxController.dispose();
     _adresseController.dispose();
     _accesController.dispose();
     _newReferentController.dispose();
     super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _clearAll() {
@@ -701,8 +715,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   // Navigation vers SummaryScreen
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (context) => SummaryScreen(
+                                    PageRouteBuilder(
+                                      pageBuilder: (context, animation, secondaryAnimation) => SummaryScreen(
                                         title: titleController.text.trim(),
                                         referent: _selectedReferent!,
                                         travaux: _travauxController.text,
@@ -710,6 +724,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         acces: _accesController.text,
                                         isDarkMode: _themeService.isDarkMode,
                                       ),
+                                      transitionDuration: const Duration(milliseconds: 300),
+                                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                        return FadeTransition(
+                                          opacity: animation,
+                                          child: SlideTransition(
+                                            position: Tween<Offset>(
+                                              begin: const Offset(1.0, 0.0),
+                                              end: Offset.zero,
+                                            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                                            child: child,
+                                          ),
+                                        );
+                                      },
                                     ),
                                   );
                                 }
@@ -903,189 +930,185 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _themeService,
-      builder: (context, child) {
-        return Scaffold(
-          key: _scaffoldKey,
-          extendBodyBehindAppBar: true,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            automaticallyImplyLeading: false,
-            title: Row(
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: _themeService.backgroundColor,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const MainDashboard()),
+                  (Route<dynamic> route) => false,
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: _themeService.primaryColor,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Métrique',
+              style: TextStyle(
+                color: _themeService.textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SettingsButton(
+            isDarkMode: _themeService.isDarkMode,
+            onPressed: () {
+              _scaffoldKey.currentState?.openEndDrawer();
+            },
+          ),
+        ],
+      ),
+      endDrawer: _buildSidebar(),
+      body: Container(
+        decoration: BoxDecoration(
+          color: _themeService.backgroundColor,
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const MainDashboard()),
-                      (Route<dynamic> route) => false,
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.arrow_back,
-                      color: _themeService.primaryColor,
-                      size: 20,
-                    ),
+                // Logo responsive selon l'orientation
+                Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+                      final screenHeight = MediaQuery.of(context).size.height;
+                      
+                      // En mode paysage ou sur petit écran, logo plus petit
+                      if (isLandscape || screenHeight < 600) {
+                        return Image.asset(
+                          'assets/images/logo.png',
+                          height: 100,
+                          fit: BoxFit.contain,
+                        );
+                      } else {
+                        // Mode portrait normal
+                        return Image.asset(
+                          'assets/images/logo.png',
+                          height: 100,
+                          fit: BoxFit.contain,
+                        );
+                      }
+                    },
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  'Métrique',
-                  style: TextStyle(
-                    color: _themeService.textColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                    
+                const SizedBox(height: 20),
+                    
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: MediaQuery.of(context).size.height - 200,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTextField(
+                            label: 'Référent *',
+                            controller: _referentController,
+                            icon: Icons.person,
+                            isError: _referentError,
+                            customField: _buildReferentDropdown(),
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          _buildTextField(
+                            label: 'Travaux *',
+                            controller: _travauxController,
+                            icon: Icons.construction,
+                            isError: _travauxError,
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          _buildTextField(
+                            label: 'Adresse *',
+                            controller: _adresseController,
+                            icon: Icons.location_on,
+                            isError: _adresseError,
+                            customField: AddressField(
+                              controller: _adresseController,
+                              isDarkMode: _themeService.isDarkMode,
+                              hasError: _adresseError,
+                              onChanged: (value) {
+                                if (_adresseError) {
+                                  setState(() => _adresseError = false);
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          _buildTextField(
+                            label: 'Accès',
+                            controller: _accesController,
+                            icon: Icons.directions,
+                          ),
+                          const SizedBox(height: 40),
+                          
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _saveData,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _themeService.primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 3,
+                              ),
+                              child: const Text(
+                                'Enregistrer',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-            actions: [
-              SettingsButton(
-                isDarkMode: _themeService.isDarkMode,
-                onPressed: () {
-                  _scaffoldKey.currentState?.openEndDrawer();
-                },
-              ),
-            ],
           ),
-          endDrawer: _buildSidebar(),
-          body: Container(
-            decoration: BoxDecoration(
-              color: _themeService.backgroundColor,
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Logo responsive selon l'orientation
-                    Center(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-                          final screenHeight = MediaQuery.of(context).size.height;
-                          
-                          // En mode paysage ou sur petit écran, logo plus petit
-                          if (isLandscape || screenHeight < 600) {
-                            return Image.asset(
-                              'assets/images/logo.png',
-                              height: 100,
-                              fit: BoxFit.contain,
-                            );
-                          } else {
-                            // Mode portrait normal
-                            return Image.asset(
-                              'assets/images/logo.png',
-                              height: 100,
-                              fit: BoxFit.contain,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: MediaQuery.of(context).size.height - 200,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildTextField(
-                                label: 'Référent *',
-                                controller: _referentController,
-                                icon: Icons.person,
-                                isError: _referentError,
-                                customField: _buildReferentDropdown(),
-                              ),
-                              const SizedBox(height: 24),
-                              
-                              _buildTextField(
-                                label: 'Travaux *',
-                                controller: _travauxController,
-                                icon: Icons.construction,
-                                isError: _travauxError,
-                              ),
-                              const SizedBox(height: 24),
-                              
-                              _buildTextField(
-                                label: 'Adresse *',
-                                controller: _adresseController,
-                                icon: Icons.location_on,
-                                isError: _adresseError,
-                                customField: AddressField(
-                                  controller: _adresseController,
-                                  isDarkMode: _themeService.isDarkMode,
-                                  hasError: _adresseError,
-                                  onChanged: (value) {
-                                    if (_adresseError) {
-                                      setState(() => _adresseError = false);
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              
-                              _buildTextField(
-                                label: 'Accès',
-                                controller: _accesController,
-                                icon: Icons.directions,
-                              ),
-                              const SizedBox(height: 40),
-                              
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: _saveData,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _themeService.primaryColor,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    elevation: 3,
-                                  ),
-                                  child: const Text(
-                                    'Enregistrer',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

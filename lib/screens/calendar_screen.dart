@@ -1,44 +1,149 @@
 import 'package:flutter/material.dart';
 import '../widgets/settings_button.dart';
+import '../services/theme_service.dart';
 import 'main_dashboard.dart';
+import 'package:device_calendar/device_calendar.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class CalendarScreen extends StatefulWidget {
-  final bool isDarkMode;
-
-  const CalendarScreen({super.key, this.isDarkMode = false});
+  const CalendarScreen({super.key});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  bool _isDarkMode = false;
+  final ThemeService _themeService = ThemeService();
+  final DeviceCalendarPlugin _deviceCalendarPlugin = DeviceCalendarPlugin();
+  
   DateTime _selectedDate = DateTime.now();
   DateTime _focusedDate = DateTime.now();
   Map<DateTime, List<CalendarEvent>> _events = {};
+  
+  List<Calendar> _calendars = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _isDarkMode = widget.isDarkMode;
-    _initializeEvents();
+    // Écouter les changements de thème
+    _themeService.addListener(_onThemeChanged);
+    _initializeCalendar();
   }
 
-  void _initializeEvents() {
-    // Quelques événements d'exemple
-    final today = DateTime.now();
-    _events = {
-      DateTime(today.year, today.month, today.day): [
-        CalendarEvent("Réunion équipe", "10:00", Colors.blue),
-        CalendarEvent("Présentation projet", "15:30", Colors.orange),
-      ],
-      DateTime(today.year, today.month, today.day + 1): [
-        CalendarEvent("Formation", "09:00", Colors.green),
-      ],
-      DateTime(today.year, today.month, today.day + 3): [
-        CalendarEvent("Deadline projet", "17:00", Colors.red),
-      ],
-    };
+  @override
+  void dispose() {
+    _themeService.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _initializeCalendar() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Demander la permission d'accès au calendrier
+      final permissionStatus = await Permission.calendar.request();
+      
+      if (permissionStatus.isGranted) {
+        // Récupérer la liste des calendriers
+        final calendarsResult = await _deviceCalendarPlugin.retrieveCalendars();
+        
+        if (calendarsResult.isSuccess) {
+          _calendars = calendarsResult.data!;
+          
+          // Charger les événements du calendrier principal (iPhone)
+          await _loadCalendarEvents();
+        } else {
+          setState(() {
+            _errorMessage = 'Erreur lors de la récupération des calendriers';
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Permission d\'accès au calendrier refusée';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Erreur: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadCalendarEvents() async {
+    if (_calendars.isEmpty) return;
+
+    try {
+      // Utiliser le premier calendrier disponible (généralement le calendrier principal)
+      final calendar = _calendars.first;
+      
+      // Récupérer les événements du mois en cours
+      final startDate = DateTime(_selectedDate.year, _selectedDate.month, 1);
+      final endDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
+      
+      final eventsResult = await _deviceCalendarPlugin.retrieveEvents(
+        calendar.id,
+        RetrieveEventsParams(
+          startDate: startDate,
+          endDate: endDate,
+        ),
+      );
+
+      if (eventsResult.isSuccess) {
+        final deviceEvents = eventsResult.data!;
+        _events.clear();
+        
+        for (final event in deviceEvents) {
+          final eventDate = event.start!;
+          final dateKey = DateTime(eventDate.year, eventDate.month, eventDate.day);
+          
+          if (!_events.containsKey(dateKey)) {
+            _events[dateKey] = [];
+          }
+          
+          _events[dateKey]!.add(
+            CalendarEvent(
+              event.title ?? 'Sans titre',
+              '${eventDate.hour.toString().padLeft(2, '0')}:${eventDate.minute.toString().padLeft(2, '0')}',
+              _getEventColor(event),
+              description: event.description,
+              location: event.location,
+            ),
+          );
+        }
+        
+        setState(() {});
+      }
+    } catch (e) {
+      print('Erreur lors du chargement des événements: $e');
+    }
+  }
+
+  Color _getEventColor(Event event) {
+    // Couleurs par défaut selon le type d'événement
+    final title = event.title?.toLowerCase() ?? '';
+    if (title.contains('réunion') || title.contains('meeting')) return Colors.blue;
+    if (title.contains('formation') || title.contains('training')) return Colors.green;
+    if (title.contains('deadline') || title.contains('urgent')) return Colors.red;
+    if (title.contains('présentation') || title.contains('presentation')) return Colors.orange;
+    if (title.contains('rdv') || title.contains('appointment')) return Colors.purple;
+    if (title.contains('anniversaire') || title.contains('birthday')) return Colors.pink;
+    
+    return Colors.grey;
   }
 
   List<CalendarEvent> _getEventsForDay(DateTime day) {
@@ -47,32 +152,55 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = _themeService.isDarkMode;
     return Scaffold(
-      backgroundColor: _isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF5F7FA),
+      backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF5F7FA),
       appBar: AppBar(
-        backgroundColor: _isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
+        backgroundColor: isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
-            color: _isDarkMode ? Colors.white : Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Calendrier',
           style: TextStyle(
-            color: _isDarkMode ? Colors.white : Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         actions: [
+          // Bouton de synchronisation
+          Container(
+            margin: const EdgeInsets.only(right: 8, top: 8),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[800] : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: Icon(
+                _isLoading ? Icons.refresh : Icons.sync,
+                color: isDarkMode ? Colors.white : Colors.black,
+              ),
+              onPressed: _isLoading ? null : _initializeCalendar,
+            ),
+          ),
           // Bouton Home pour retourner au dashboard
           Container(
             margin: const EdgeInsets.only(right: 8, top: 8),
             decoration: BoxDecoration(
-              color: _isDarkMode ? Colors.grey[800] : Colors.white,
+              color: isDarkMode ? Colors.grey[800] : Colors.white,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -85,7 +213,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: IconButton(
               icon: Icon(
                 Icons.home_rounded,
-                color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFFE91E63),
+                color: isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFFE91E63),
               ),
               onPressed: () {
                 Navigator.of(context).pushAndRemoveUntil(
@@ -100,7 +228,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Container(
             margin: const EdgeInsets.only(right: 8, top: 8),
             decoration: BoxDecoration(
-              color: _isDarkMode ? Colors.grey[800] : Colors.white,
+              color: isDarkMode ? Colors.grey[800] : Colors.white,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -112,21 +240,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             child: IconButton(
               icon: Icon(
-                _isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                color: _isDarkMode 
+                isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                color: isDarkMode 
                   ? const Color(0xFF9C27B0) 
                   : const Color(0xFFE91E63),
               ),
               onPressed: () {
-                setState(() {
-                  _isDarkMode = !_isDarkMode;
-                });
+                _themeService.toggleTheme();
               },
-              tooltip: _isDarkMode ? 'Mode clair' : 'Mode sombre',
+              tooltip: isDarkMode ? 'Mode clair' : 'Mode sombre',
             ),
           ),
           SettingsButton(
-            isDarkMode: _isDarkMode,
+            isDarkMode: isDarkMode,
             onPressed: () {
               // TODO: Ajouter sidebar si nécessaire
             },
@@ -135,13 +261,45 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       body: Column(
         children: [
+          // Affichage des erreurs
+          if (_errorMessage != null)
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: Colors.red),
+                    onPressed: () {
+                      setState(() {
+                        _errorMessage = null;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          
           // En-tête du mois
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: _isDarkMode 
+                colors: isDarkMode 
                   ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
                   : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
               ),
@@ -163,6 +321,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     setState(() {
                       _focusedDate = DateTime(_focusedDate.year, _focusedDate.month - 1);
                     });
+                    _loadCalendarEvents(); // Recharger les événements
                   },
                 ),
                 Text(
@@ -179,6 +338,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     setState(() {
                       _focusedDate = DateTime(_focusedDate.year, _focusedDate.month + 1);
                     });
+                    _loadCalendarEvents(); // Recharger les événements
                   },
                 ),
               ],
@@ -190,7 +350,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: _isDarkMode ? Colors.grey[850] : Colors.white,
+                color: isDarkMode ? Colors.grey[850] : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -211,7 +371,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           .map((day) => Text(
                                 day,
                                 style: TextStyle(
-                                  color: _isDarkMode ? Colors.white70 : Colors.grey[600],
+                                  color: isDarkMode ? Colors.white70 : Colors.grey[600],
                                   fontWeight: FontWeight.w600,
                                 ),
                               ))
@@ -233,7 +393,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _isDarkMode ? Colors.grey[850] : Colors.white,
+                color: isDarkMode ? Colors.grey[850] : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -249,7 +409,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Text(
                     'Événements du ${_selectedDate.day}/${_selectedDate.month}',
                     style: TextStyle(
-                      color: _isDarkMode ? Colors.white : Colors.black,
+                      color: isDarkMode ? Colors.white : Colors.black,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -263,7 +423,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddEventDialog(),
-        backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+        backgroundColor: isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
@@ -302,7 +462,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: isSelected
-                  ? (_isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA))
+                  ? (_themeService.isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA))
                   : (isToday ? Colors.orange.withOpacity(0.3) : Colors.transparent),
               borderRadius: BorderRadius.circular(8),
               border: hasEvents ? Border.all(color: Colors.orange, width: 2) : null,
@@ -313,7 +473,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 style: TextStyle(
                   color: isSelected
                       ? Colors.white
-                      : (_isDarkMode ? Colors.white : Colors.black),
+                      : (_themeService.isDarkMode ? Colors.white : Colors.black),
                   fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -325,6 +485,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildEventCard(CalendarEvent event) {
+    final isDarkMode = _themeService.isDarkMode;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -351,14 +512,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Text(
                   event.title,
                   style: TextStyle(
-                    color: _isDarkMode ? Colors.white : Colors.black,
+                    color: isDarkMode ? Colors.white : Colors.black,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   event.time,
                   style: TextStyle(
-                    color: _isDarkMode ? Colors.white70 : Colors.grey[600],
+                    color: isDarkMode ? Colors.white70 : Colors.grey[600],
                     fontSize: 12,
                   ),
                 ),
@@ -385,15 +546,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _showAddEventDialog() {
     final titleController = TextEditingController();
     final timeController = TextEditingController();
+    final isDarkMode = _themeService.isDarkMode;
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.white,
+        backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
         title: Text(
           'Nouvel événement',
           style: TextStyle(
-            color: _isDarkMode ? Colors.white : Colors.black,
+            color: isDarkMode ? Colors.white : Colors.black,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -402,15 +564,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
           children: [
             TextField(
               controller: titleController,
-              style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
+              style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
               decoration: InputDecoration(
                 labelText: 'Titre',
-                labelStyle: TextStyle(color: _isDarkMode ? Colors.white70 : Colors.grey[600]),
+                labelStyle: TextStyle(color: isDarkMode ? Colors.white70 : Colors.grey[600]),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                    color: isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
                   ),
                 ),
               ),
@@ -418,15 +580,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: timeController,
-              style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
+              style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
               decoration: InputDecoration(
                 labelText: 'Heure (ex: 10:30)',
-                labelStyle: TextStyle(color: _isDarkMode ? Colors.white70 : Colors.grey[600]),
+                labelStyle: TextStyle(color: isDarkMode ? Colors.white70 : Colors.grey[600]),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                    color: isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
                   ),
                 ),
               ),
@@ -438,7 +600,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Annuler',
-              style: TextStyle(color: _isDarkMode ? Colors.white70 : Colors.grey[600]),
+              style: TextStyle(color: isDarkMode ? Colors.white70 : Colors.grey[600]),
             ),
           ),
           ElevatedButton(
@@ -459,7 +621,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+              backgroundColor: isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
             ),
             child: const Text('Ajouter', style: TextStyle(color: Colors.white)),
           ),
@@ -473,6 +635,8 @@ class CalendarEvent {
   final String title;
   final String time;
   final Color color;
+  final String? description;
+  final String? location;
 
-  CalendarEvent(this.title, this.time, this.color);
+  CalendarEvent(this.title, this.time, this.color, {this.description, this.location});
 } 

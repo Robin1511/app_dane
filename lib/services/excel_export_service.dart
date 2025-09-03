@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:html' as html;
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../screens/summary_screen.dart';
 
 class ExcelExportService {
@@ -28,10 +30,22 @@ class ExcelExportService {
         }
       }
 
+      // Demander les permissions pour iOS
+      if (!kIsWeb && Platform.isIOS) {
+        // Sur iOS, on n'a pas besoin de permission photos pour sauvegarder des fichiers
+        // Le dossier Documents est accessible sans permission spéciale
+        print('iOS détecté - pas besoin de permission photos pour l\'export Excel');
+      }
+
       // Charger le template existant
       final ByteData templateData = await rootBundle.load('assets/template.xlsx');
       final Uint8List templateBytes = templateData.buffer.asUint8List();
       var excel = Excel.decodeBytes(templateBytes);
+      
+      // Vérifier que le template a été chargé correctement
+      if (excel.tables.isEmpty) {
+        return 'Erreur: Template Excel vide ou corrompu';
+      }
       
       // ================================
       // PREMIÈRE FEUILLE - INFORMATIONS
@@ -81,13 +95,15 @@ class ExcelExportService {
       List<int>? fileBytes = excel.save();
       if (fileBytes != null) {
         if (kIsWeb) {
-          return 'Fichier Excel généré (${fileBytes.length} bytes) - Téléchargement automatique sur web à implémenter';
+          // Sur web, créer un blob et télécharger
+          return _downloadFileOnWeb(fileBytes, fileName);
         } else {
           // Sur mobile
           Directory? directory;
           if (Platform.isAndroid) {
             directory = await getExternalStorageDirectory();
           } else {
+            // Sur iOS, utiliser le dossier Documents qui est accessible via Files
             directory = await getApplicationDocumentsDirectory();
           }
           
@@ -96,14 +112,21 @@ class ExcelExportService {
             ..createSync(recursive: true)
             ..writeAsBytesSync(fileBytes);
           
+          // Sur iOS, ouvrir le fichier dans l'app Files
+          if (Platform.isIOS) {
+            await _openFileInFiles(filePath, fileName);
+            return 'Fichier Excel exporté avec succès !\nConsultez l\'app Files pour le retrouver.';
+          }
+          
           return filePath;
         }
       }
       
       return null;
     } catch (e) {
-      print('Erreur lors de l\'export Excel: $e');
-      return null;
+      print('Erreur détaillée lors de l\'export Excel: $e');
+      print('Stack trace: ${StackTrace.current}');
+      return 'Erreur: $e';
     }
   }
 
@@ -313,5 +336,43 @@ class ExcelExportService {
     }
     
     return total;
+  }
+  
+  // Ouvrir le fichier dans l'app Files sur iOS
+  static Future<void> _openFileInFiles(String filePath, String fileName) async {
+    try {
+      // Sur iOS, on peut utiliser un URL scheme pour ouvrir dans Files
+      final Uri url = Uri.file(filePath);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        // Fallback: essayer d'ouvrir avec l'app Files
+        final Uri filesUrl = Uri.parse('shareddocuments://$filePath');
+        if (await canLaunchUrl(filesUrl)) {
+          await launchUrl(filesUrl);
+        } else {
+          print('Impossible d\'ouvrir le fichier dans Files - fichier sauvegardé dans: $filePath');
+        }
+      }
+    } catch (e) {
+      print('Erreur lors de l\'ouverture du fichier: $e');
+      print('Fichier sauvegardé dans: $filePath');
+    }
+  }
+  
+  // Télécharger le fichier sur le web
+  static String _downloadFileOnWeb(List<int> fileBytes, String fileName) {
+    try {
+      // Créer un blob et télécharger
+      final blob = html.Blob([fileBytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      return 'Fichier Excel téléchargé avec succès !';
+    } catch (e) {
+      return 'Erreur lors du téléchargement: $e';
+    }
   }
 } 

@@ -56,5 +56,11 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Cette application a besoin d'accéder aux dossiers pour sauvegarder les fichiers Excel exportés.</string>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 </dict>
 </plist>

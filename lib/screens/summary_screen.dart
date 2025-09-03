@@ -897,34 +897,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Bouton Home pour retourner au dashboard
-                  Container(
-                    margin: const EdgeInsets.only(right: 8, top: 8),
-                    decoration: BoxDecoration(
-                      color: _isDarkMode ? Colors.grey[800] : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.home_rounded,
-                        color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFFE91E63),
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (context) => const MainDashboard()),
-                          (Route<dynamic> route) => false,
-                        );
-                      },
-                      tooltip: 'Retour au dashboard',
-                    ),
-                  ),
                   Container(
                     margin: const EdgeInsets.only(top: 8, right: 8),
                     child: IconButton(
@@ -2204,7 +2176,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           adjustments: _adjustments,
                         );
 
-                        if (filePath != null) {
+                        if (filePath != null && !filePath.startsWith('Erreur:')) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Fichier Excel exporté !\n$filePath'),
@@ -2219,9 +2191,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Erreur lors de l\'export Excel'),
+                            SnackBar(
+                              content: Text(filePath ?? 'Erreur lors de l\'export Excel'),
                               backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 6),
                             ),
                           );
                         }

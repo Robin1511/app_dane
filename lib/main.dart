@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/theme_service.dart';
 import 'screens/splash_screen.dart';
@@ -14,8 +15,10 @@ void main() async {
     print('Erreur lors du chargement du fichier .env: $e');
   }
   
-  // Configurer le token Mapbox (remplacez par votre vrai token)
-  MapboxOptions.setAccessToken("pk.eyJ1Ijoicm9iaW4tZGViYXN0b3MiLCJhIjoiY20ybjE4MWNnMDE3NzJpc2ZsdW9qMHlhMCJ9.ez0Dr_TzCHXxZ4sdThqWDw");
+  // Configurer le token Mapbox seulement si pas sur web
+  if (!kIsWeb) {
+    MapboxOptions.setAccessToken("pk.eyJ1Ijoicm9iaW4tZGViYXN0b3MiLCJhIjoiY20ybjE4MWNnMDE3NzJpc2ZsdW9qMHlhMCJ9.ez0Dr_TzCHXxZ4sdThqWDw");
+  }
   
   // Initialiser le service de thème
   await ThemeService().initialize();

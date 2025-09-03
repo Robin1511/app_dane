@@ -87,6 +87,96 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Sur web, afficher un message d'information
+    if (kIsWeb) {
+      return Scaffold(
+        backgroundColor: _themeService.backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          title: Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (context) => const MainDashboard()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _themeService.surfaceColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.arrow_back,
+                    color: _themeService.textColor,
+                    size: 24,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Carte',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: _themeService.textColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.map,
+                size: 80,
+                color: _themeService.textColor.withOpacity(0.5),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Carte non disponible sur le web',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: _themeService.textColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Cette fonctionnalité est disponible uniquement\nsur les appareils mobiles.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: _themeService.textColor.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (context) => const MainDashboard()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _themeService.primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                child: const Text(
+                  'Retour au tableau de bord',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: _themeService.backgroundColor,

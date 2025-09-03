@@ -11,6 +11,7 @@ class TableItem {
   double largeur;
   double hauteur;
   String unite; // 'm2', 'm3', 'U'
+  double coef; // Nouveau: coefficient
   
   TableItem({
     this.descriptif = '',
@@ -19,18 +20,19 @@ class TableItem {
     this.largeur = 0,
     this.hauteur = 0,
     this.unite = 'm2',
+    this.coef = 1.0, // Valeur par défaut
   });
   
   double get total {
     switch (unite) {
       case 'm2':
-        return quantite * longueur * largeur;
+        return quantite * longueur * largeur * coef;
       case 'm3':
-        return quantite * longueur * largeur * hauteur;
+        return quantite * longueur * largeur * hauteur * coef;
       case 'mL':
-        return quantite * longueur;
+        return quantite * longueur * coef;
       default:
-        return quantite;
+        return quantite * coef;
     }
   }
 }
@@ -1609,37 +1611,53 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    // Longueur - Expanded avec contrainte stricte
-                    Expanded(
-                      flex: 1,
-                      child: Text(
-                        'L',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _isDarkMode ? Colors.white : Colors.black,
-                          fontSize: 14,
+                    // Longueur - Expanded avec contrainte stricte (seulement si nécessaire)
+                    if (items.any((item) => item.unite != 'U'))
+                      Expanded(
+                        flex: 1,
+                        child: Text(
+                          'L',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _isDarkMode ? Colors.white : Colors.black,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    // Largeur - Expanded avec contrainte stricte
-                    Expanded(
-                      flex: 1,
-                      child: Text(
-                        'l',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _isDarkMode ? Colors.white : Colors.black,
-                          fontSize: 14,
+                    // Largeur - Expanded avec contrainte stricte (seulement si nécessaire)
+                    if (items.any((item) => item.unite != 'U' && item.unite != 'mL'))
+                      Expanded(
+                        flex: 1,
+                        child: Text(
+                          'l',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _isDarkMode ? Colors.white : Colors.black,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    // Hauteur - Expanded avec contrainte stricte
+                    // Hauteur - Expanded avec contrainte stricte (seulement si nécessaire)
+                    if (items.any((item) => item.unite == 'm3'))
+                      Expanded(
+                        flex: 1,
+                        child: Text(
+                          'H',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _isDarkMode ? Colors.white : Colors.black,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    // Coef - Expanded avec contrainte stricte
                     Expanded(
                       flex: 1,
                       child: Text(
-                        'H',
+                        'Coef',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: _isDarkMode ? Colors.white : Colors.black,
@@ -2020,7 +2038,40 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   ),
             ),
           ),
-          
+          // Coef - Flexible avec contrainte
+          Flexible(
+            flex: 1,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              child: TextField(
+                onChanged: (value) {
+                  if (!_isDisposed && mounted) {
+                    _safeSetState(() {
+                      item.coef = double.tryParse(value.replaceAll(',', '.')) ?? 1.0;
+                    });
+                  }
+                },
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _isDarkMode ? Colors.white : Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: item.coef == 1.0 ? "1" : item.coef.toString(),
+                  hintStyle: TextStyle(
+                    color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                  ),
+                  border: InputBorder.none,
+                  isDense: false,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                  fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                  filled: true,
+                ),
+              ),
+            ),
+          ),
           // Total - Flexible avec contrainte
           Flexible(
             flex: 1,

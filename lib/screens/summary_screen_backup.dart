@@ -2555,7 +2555,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
     return item.uniqueId;
   }
 
-
   // Fonction pour obtenir la clé d'ajustement d'une ligne individuelle
   String _getItemAdjustmentKey(TableItem item) {
     // Chercher dans quel titre principal et sous-titre se trouve cet item
@@ -2653,18 +2652,32 @@ class _SummaryScreenState extends State<SummaryScreen> {
     // Créer ou récupérer les controllers persistants avec l'identifiant unique
     if (!_descriptifControllers.containsKey(contextId)) {
       _descriptifControllers[contextId] = TextEditingController(text: item.descriptif);
-        _quantiteControllers[contextId] = TextEditingController(text: item.quantite == 0 ? '' : item.quantite.toString());
-      _longueurControllers[contextId] = TextEditingController(text: item.longueur == 0 ? '' : item.longueur.toString());
-      _largeurControllers[contextId] = TextEditingController(text: item.largeur == 0 ? '' : item.largeur.toString());
-      _hauteurControllers[contextId] = TextEditingController(text: item.hauteur == 0 ? '' : item.hauteur.toString());
-      _coefControllers[contextId] = TextEditingController(text: item.coef == 1.0 ? '' : item.coef.toString());
+      _quantiteControllers[contextId] = TextEditingController(text: item.quantite > 0 ? item.quantite.toString() : '');
+      _longueurControllers[contextId] = TextEditingController(text: item.longueur > 0 ? item.longueur.toString() : '');
+      _largeurControllers[contextId] = TextEditingController(text: item.largeur > 0 ? item.largeur.toString() : '');
+      _hauteurControllers[contextId] = TextEditingController(text: item.hauteur > 0 ? item.hauteur.toString() : '');
+      _coefControllers[contextId] = TextEditingController(text: item.coef == 1.0 ? '1' : item.coef.toString());
     }
     
     // Mettre à jour les valeurs des controllers si elles ont changé
     if (_descriptifControllers[contextId]!.text != item.descriptif) {
       _descriptifControllers[contextId]!.text = item.descriptif;
     }
-    // Ne pas mettre à jour les controllers automatiquement pour éviter le formatage pendant la saisie
+    if (_quantiteControllers[contextId]!.text != (item.quantite > 0 ? item.quantite.toString() : '')) {
+      _quantiteControllers[contextId]!.text = item.quantite > 0 ? item.quantite.toString() : '';
+    }
+    if (_longueurControllers[contextId]!.text != (item.longueur > 0 ? item.longueur.toString() : '')) {
+      _longueurControllers[contextId]!.text = item.longueur > 0 ? item.longueur.toString() : '';
+    }
+    if (_largeurControllers[contextId]!.text != (item.largeur > 0 ? item.largeur.toString() : '')) {
+      _largeurControllers[contextId]!.text = item.largeur > 0 ? item.largeur.toString() : '';
+    }
+    if (_hauteurControllers[contextId]!.text != (item.hauteur > 0 ? item.hauteur.toString() : '')) {
+      _hauteurControllers[contextId]!.text = item.hauteur > 0 ? item.hauteur.toString() : '';
+    }
+    if (_coefControllers[contextId]!.text != (item.coef == 1.0 ? '1' : item.coef.toString())) {
+      _coefControllers[contextId]!.text = item.coef == 1.0 ? '1' : item.coef.toString();
+    }
     
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -2724,18 +2737,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 onChanged: (value) {
                   if (!_isDisposed && mounted) {
                     _safeSetState(() {
-                      if (value.isEmpty) {
-                        item.quantite = 0;
-                      } else {
-                        double? parsed = double.tryParse(value.replaceAll(',', '.'));
-                        if (parsed != null) {
-                          item.quantite = parsed;
-                        }
-                      }
+                      item.quantite = double.tryParse(value) ?? 0;
                     });
                   }
                 },
-                keyboardType: TextInputType.numberWithOptions(decimal: true, signed: false),
+                keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _isDarkMode ? Colors.white : Colors.black,
@@ -2806,18 +2812,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     onChanged: (value) {
                       if (!_isDisposed && mounted) {
                         _safeSetState(() {
-                          if (value.isEmpty) {
-                            item.longueur = 0;
-                          } else {
-                            double? parsed = double.tryParse(value.replaceAll(',', '.'));
-                            if (parsed != null) {
-                              item.longueur = parsed;
-                            }
-                          }
+                          item.longueur = double.tryParse(value) ?? 0;
                         });
                       }
                     },
-                    keyboardType: TextInputType.numberWithOptions(decimal: true, signed: false),
+                    keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: _isDarkMode ? Colors.white : Colors.black,
@@ -2861,18 +2860,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     onChanged: (value) {
                       if (!_isDisposed && mounted) {
                         _safeSetState(() {
-                          if (value.isEmpty) {
-                            item.largeur = 0;
-                          } else {
-                            double? parsed = double.tryParse(value.replaceAll(',', '.'));
-                            if (parsed != null) {
-                              item.largeur = parsed;
-                            }
-                          }
+                          item.largeur = double.tryParse(value) ?? 0;
                         });
                       }
                     },
-                    keyboardType: TextInputType.numberWithOptions(decimal: true, signed: false),
+                    keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: _isDarkMode ? Colors.white : Colors.black,
@@ -2916,18 +2908,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     onChanged: (value) {
                       if (!_isDisposed && mounted) {
                         _safeSetState(() {
-                          if (value.isEmpty) {
-                            item.hauteur = 0;
-                          } else {
-                            double? parsed = double.tryParse(value.replaceAll(',', '.'));
-                            if (parsed != null) {
-                              item.hauteur = parsed;
-                            }
-                          }
+                          item.hauteur = double.tryParse(value) ?? 0;
                         });
                       }
                     },
-                    keyboardType: TextInputType.numberWithOptions(decimal: true, signed: false),
+                    keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: _isDarkMode ? Colors.white : Colors.black,
@@ -2969,18 +2954,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 onChanged: (value) {
                   if (!_isDisposed && mounted) {
                     _safeSetState(() {
-                      if (value.isEmpty) {
-                        item.coef = 1.0;
-                      } else {
-                        double? parsed = double.tryParse(value.replaceAll(',', '.'));
-                        if (parsed != null) {
-                          item.coef = parsed;
-                        }
-                      }
+                      item.coef = double.tryParse(value.replaceAll(',', '.')) ?? 1.0;
                     });
                   }
                 },
-                keyboardType: TextInputType.numberWithOptions(decimal: true, signed: false),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _isDarkMode ? Colors.white : Colors.black,
@@ -3529,7 +3507,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
           int itemIndex = subTitle.items.indexOf(item);
           if (itemIndex != -1) {
             targetList = subTitle.items;
-             targetIndex = itemIndex;
+            targetIndex = itemIndex;
             foundMainTitle = mainTitle;
             foundSubTitle = subTitle;
             break;
@@ -3543,7 +3521,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       _safeSetState(() {
         // Créer une nouvelle ligne avec des données fraîches
         TableItem newItem = TableItem(
-          descriptif: item.descriptif.isNotEmpty ? '${item.descriptif}' : '',
+          descriptif: item.descriptif.isNotEmpty ? '${item.descriptif} (copie)' : '',
           quantite: item.quantite,
           longueur: item.longueur,
           largeur: item.largeur,
@@ -3557,11 +3535,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
         
         // Créer les controllers pour la nouvelle ligne avec son ID unique
         _descriptifControllers[newItem.uniqueId] = TextEditingController(text: newItem.descriptif);
-        _quantiteControllers[newItem.uniqueId] = TextEditingController(text: newItem.quantite == 0 ? '' : newItem.quantite.toString());
-        _longueurControllers[newItem.uniqueId] = TextEditingController(text: newItem.longueur == 0 ? '' : newItem.longueur.toString());
-        _largeurControllers[newItem.uniqueId] = TextEditingController(text: newItem.largeur == 0 ? '' : newItem.largeur.toString());
-        _hauteurControllers[newItem.uniqueId] = TextEditingController(text: newItem.hauteur == 0 ? '' : newItem.hauteur.toString());
-        _coefControllers[newItem.uniqueId] = TextEditingController(text: newItem.coef == 1.0 ? '' : newItem.coef.toString());
+        _quantiteControllers[newItem.uniqueId] = TextEditingController(text: newItem.quantite > 0 ? newItem.quantite.toString() : '');
+        _longueurControllers[newItem.uniqueId] = TextEditingController(text: newItem.longueur > 0 ? newItem.longueur.toString() : '');
+        _largeurControllers[newItem.uniqueId] = TextEditingController(text: newItem.largeur > 0 ? newItem.largeur.toString() : '');
+        _hauteurControllers[newItem.uniqueId] = TextEditingController(text: newItem.hauteur > 0 ? newItem.hauteur.toString() : '');
+        _coefControllers[newItem.uniqueId] = TextEditingController(text: newItem.coef == 1.0 ? '1' : newItem.coef.toString());
       });
       
       ScaffoldMessenger.of(context).showSnackBar(

@@ -247,8 +247,15 @@ class ExcelExportService {
     
     for (TableItem item in items) {
       if (item.descriptif.isNotEmpty) {
-        currentRow = _writeTableRow(sheet, currentRow, item);
-        subTotal += item.total;
+        currentRow = _writeTableRow(sheet, currentRow, item, adjustments, titleName, null, items.indexOf(item));
+        // Calculer le total ajusté pour cet item
+        double itemTotal = item.total;
+        int itemIndex = items.indexOf(item);
+        String itemKey = 'main_${titleName}_item_$itemIndex';
+        if (adjustments.containsKey(itemKey)) {
+          itemTotal += adjustments[itemKey]!;
+        }
+        subTotal += itemTotal;
       }
     }
     
@@ -259,36 +266,36 @@ class ExcelExportService {
     // Affichage du total avec déduction visible
     if (adjustment != 0) {
       // Afficher la déduction
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = 
         TextCellValue('SOUS-TOTAL:');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = 
         DoubleCellValue(subTotal);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
       currentRow++;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = 
         TextCellValue('DEDUCTION:');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = 
         DoubleCellValue(adjustment);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
       currentRow++;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = 
         TextCellValue('TOTAL FINAL:');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = 
         DoubleCellValue(finalTotal);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
     } else {
       // Total simple sans déduction
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = 
         TextCellValue('TOTAL:');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = 
         DoubleCellValue(finalTotal);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
     }
     
     return currentRow + 1;
@@ -313,8 +320,15 @@ class ExcelExportService {
     
     for (TableItem item in subTitle.items) {
       if (item.descriptif.isNotEmpty) {
-        currentRow = _writeTableRow(sheet, currentRow, item);
-        subTotal += item.total;
+        currentRow = _writeTableRow(sheet, currentRow, item, adjustments, mainTitleName, subTitle.name, subTitle.items.indexOf(item));
+        // Calculer le total ajusté pour cet item
+        double itemTotal = item.total;
+        int itemIndex = subTitle.items.indexOf(item);
+        String itemKey = 'sub_${mainTitleName}_${subTitle.name}_item_$itemIndex';
+        if (adjustments.containsKey(itemKey)) {
+          itemTotal += adjustments[itemKey]!;
+        }
+        subTotal += itemTotal;
       }
     }
     
@@ -325,43 +339,43 @@ class ExcelExportService {
     // Affichage du total avec déduction visible
     if (adjustment != 0) {
       // Afficher la déduction
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = 
         TextCellValue('SOUS-TOTAL:');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = 
         DoubleCellValue(subTotal);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
       currentRow++;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = 
         TextCellValue('DEDUCTION:');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = 
         DoubleCellValue(adjustment);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
       currentRow++;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = 
         TextCellValue('TOTAL FINAL:');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = 
         DoubleCellValue(finalTotal);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
     } else {
       // Total simple sans déduction
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = 
         TextCellValue('TOTAL:');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).value = 
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = 
         DoubleCellValue(finalTotal);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['text']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: totalCols['value']!, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = CellStyle(bold: true);
     }
     
     return currentRow + 1;
   }
   
   // Écrire une ligne de tableau selon l'unité
-  static int _writeTableRow(Sheet sheet, int row, TableItem item) {
+  static int _writeTableRow(Sheet sheet, int row, TableItem item, Map<String, double> adjustments, String mainTitleName, String? subTitleName, int itemIndex) {
     int currentCol = 1;
     
     // B: Descriptif
@@ -376,29 +390,81 @@ class ExcelExportService {
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = 
       TextCellValue(item.unite);
     
-    // Colonnes selon l'unité
+    // Calculer le total ajusté pour cette ligne
+    double adjustedTotal = item.total;
+    String itemKey = '';
+    
+    if (subTitleName != null) {
+      // C'est une ligne de sous-titre
+      itemKey = 'sub_${mainTitleName}_${subTitleName}_item_$itemIndex';
+    } else {
+      // C'est une ligne directe du titre principal
+      itemKey = 'main_${mainTitleName}_item_$itemIndex';
+    }
+    
+    if (itemKey.isNotEmpty && adjustments.containsKey(itemKey)) {
+      adjustedTotal = item.total + adjustments[itemKey]!;
+    }
+    
+    // Déterminer si on doit appliquer le style orange (déduction)
+    bool hasDeduction = itemKey.isNotEmpty && adjustments.containsKey(itemKey) && adjustments[itemKey]! != 0;
+    
+    // Colonnes selon l'unité (structure fixe maintenant)
     if (item.unite == 'm2') {
       // E: Longueur, F: Largeur, G: Coef, H: Total
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.longueur);
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.largeur);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(0); // H vide pour m2
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.coef);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.total);
+      var totalCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
+      totalCell.value = DoubleCellValue(adjustedTotal);
+      if (hasDeduction) {
+        totalCell.cellStyle = CellStyle(bold: true); // Gras pour indiquer une déduction
+      }
     } else if (item.unite == 'm3') {
       // E: Longueur, F: Largeur, G: Hauteur, H: Coef, I: Total
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.longueur);
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.largeur);
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.hauteur);
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.coef);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.total);
+      var totalCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
+      totalCell.value = DoubleCellValue(adjustedTotal);
+      if (hasDeduction) {
+        totalCell.cellStyle = CellStyle(bold: true); // Gras pour indiquer une déduction
+      }
     } else if (item.unite == 'mètre linéaire') {
-      // E: Longueur, F: Coef, G: Total
+      // E: Longueur, F: Largeur, G: Hauteur, H: Coef, I: Total
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.longueur);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(0); // l vide pour mL
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(0); // H vide pour mL
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.coef);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.total);
+      var totalCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
+      totalCell.value = DoubleCellValue(adjustedTotal);
+      if (hasDeduction) {
+        totalCell.cellStyle = CellStyle(bold: true); // Gras pour indiquer une déduction
+      }
+    } else if (item.unite == 'rp') {
+      // E: Longueur, F: Largeur, G: Hauteur, H: Coef, I: Total
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.longueur);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.largeur);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.hauteur);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.coef);
+      var totalCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
+      totalCell.value = DoubleCellValue(adjustedTotal);
+      if (hasDeduction) {
+        totalCell.cellStyle = CellStyle(bold: true); // Gras pour indiquer une déduction
+      }
     } else {
-      // unité: E: Coef, F: Total seulement
+      // U: E: Longueur, F: Largeur, G: Hauteur, H: Coef, I: Total
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(0); // L vide pour U
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(0); // l vide pour U
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(0); // H vide pour U
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.coef);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row)).value = DoubleCellValue(item.total);
+      var totalCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
+      totalCell.value = DoubleCellValue(adjustedTotal);
+      if (hasDeduction) {
+        totalCell.cellStyle = CellStyle(bold: true); // Gras pour indiquer une déduction
+      }
     }
     
     return row + 1;
@@ -423,31 +489,20 @@ class ExcelExportService {
     headerCell.value = TextCellValue('Unité');
     headerCell.cellStyle = CellStyle(bold: true);
     
-    // Déterminer quelles colonnes afficher selon les items
-    bool hasLongueur = items.any((item) => item.unite != 'U');
-    bool hasLargeur = items.any((item) => item.unite != 'U' && item.unite != 'mL');
-    bool hasHauteur = items.any((item) => item.unite == 'm3');
+    // Longueur (toujours présent)
+    headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
+    headerCell.value = TextCellValue('Longueur');
+    headerCell.cellStyle = CellStyle(bold: true);
     
-    // Longueur
-    if (hasLongueur) {
-      headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
-      headerCell.value = TextCellValue('Longueur');
-      headerCell.cellStyle = CellStyle(bold: true);
-    }
+    // Largeur (toujours présent)
+    headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
+    headerCell.value = TextCellValue('Largeur');
+    headerCell.cellStyle = CellStyle(bold: true);
     
-    // Largeur
-    if (hasLargeur) {
-      headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
-      headerCell.value = TextCellValue('Largeur');
-      headerCell.cellStyle = CellStyle(bold: true);
-    }
-    
-    // Hauteur
-    if (hasHauteur) {
-      headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
-      headerCell.value = TextCellValue('Hauteur');
-      headerCell.cellStyle = CellStyle(bold: true);
-    }
+    // Hauteur (toujours présent)
+    headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
+    headerCell.value = TextCellValue('Hauteur');
+    headerCell.cellStyle = CellStyle(bold: true);
     
     // Coef
     headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: currentCol++, rowIndex: row));
@@ -464,17 +519,39 @@ class ExcelExportService {
   static double _calculateMainTitleTotal(MainTitle mainTitle, Map<String, double> adjustments) {
     double total = 0;
     
-    // Total des items directs
-    for (TableItem item in mainTitle.directItems) {
-      total += item.total;
+    // Total des items directs avec déductions individuelles
+    for (int i = 0; i < mainTitle.directItems.length; i++) {
+      TableItem item = mainTitle.directItems[i];
+      double itemTotal = item.total;
+      
+      // Vérifier s'il y a une déduction pour cet item
+      String itemKey = 'main_${mainTitle.name}_item_$i';
+      if (adjustments.containsKey(itemKey)) {
+        itemTotal += adjustments[itemKey]!;
+      }
+      
+      total += itemTotal;
     }
+    
+    // Déduction au niveau du titre principal
     total += adjustments['main_${mainTitle.name}'] ?? 0;
     
-    // Total des sous-titres
+    // Total des sous-titres avec déductions individuelles
     for (SubTitle subTitle in mainTitle.subTitles) {
-      for (TableItem item in subTitle.items) {
-        total += item.total;
+      for (int i = 0; i < subTitle.items.length; i++) {
+        TableItem item = subTitle.items[i];
+        double itemTotal = item.total;
+        
+        // Vérifier s'il y a une déduction pour cet item
+        String itemKey = 'sub_${mainTitle.name}_${subTitle.name}_item_$i';
+        if (adjustments.containsKey(itemKey)) {
+          itemTotal += adjustments[itemKey]!;
+        }
+        
+        total += itemTotal;
       }
+      
+      // Déduction au niveau du sous-titre
       total += adjustments['sub_${mainTitle.name}_${subTitle.name}'] ?? 0;
     }
     

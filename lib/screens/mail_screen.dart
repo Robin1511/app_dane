@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/theme_service.dart';
 import '../services/outlook_service.dart';
 import 'main_dashboard.dart';
 import 'package:file_picker/file_picker.dart';
-// import 'package:flutter_html/flutter_html.dart'; // Désactivé temporairement
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
+import 'dart:io';
 
 // Types de dialogue email
 enum EmailDialogType { compose, reply }
@@ -18,6 +22,7 @@ class _OutlookEmailDialog extends StatefulWidget {
   final EmailDialogType type;
   final EmailMessage? replyTo;
   final Function(String to, String subject, String body, List<PlatformFile> attachments) onSend;
+  final OutlookService outlookService;
 
   const _OutlookEmailDialog({
     super.key,
@@ -25,6 +30,7 @@ class _OutlookEmailDialog extends StatefulWidget {
     required this.type,
     this.replyTo,
     required this.onSend,
+    required this.outlookService,
   });
 
   @override
@@ -37,6 +43,12 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
   late TextEditingController _bodyController;
   final List<PlatformFile> _attachments = [];
   bool _isSending = false;
+  
+  // Autocomplétion des contacts
+  List<Contact> _allContacts = [];
+  List<Contact> _filteredContacts = [];
+  bool _showSuggestions = false;
+  final FocusNode _toFieldFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -54,14 +66,55 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
         ? '\n\n---\n${widget.replyTo?.subject ?? ''}\n---' 
         : '',
     );
+    
+    _toController.addListener(_onToFieldChanged);
+    _loadContacts();
   }
 
   @override
   void dispose() {
+    _toController.removeListener(_onToFieldChanged);
     _toController.dispose();
     _subjectController.dispose();
     _bodyController.dispose();
+    _toFieldFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadContacts() async {
+    final contacts = await widget.outlookService.getContacts();
+    setState(() {
+      _allContacts = contacts;
+    });
+  }
+
+  void _onToFieldChanged() {
+    final query = _toController.text.toLowerCase();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _showSuggestions = false;
+        _filteredContacts = [];
+      });
+      return;
+    }
+    
+    final filtered = _allContacts.where((contact) {
+      return contact.displayName.toLowerCase().contains(query) ||
+             contact.emailAddress.toLowerCase().contains(query);
+    }).toList();
+    
+    setState(() {
+      _filteredContacts = filtered;
+      _showSuggestions = filtered.isNotEmpty;
+    });
+  }
+
+  void _selectContact(Contact contact) {
+    _toController.text = contact.emailAddress;
+    setState(() {
+      _showSuggestions = false;
+    });
   }
 
   Future<void> _addAttachment() async {
@@ -181,11 +234,141 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    // Champ À
-                    _buildInputField(
-                      controller: _toController,
-                      label: 'À',
-                      icon: Icons.person,
+                    // Champ À avec autocomplétion
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInputField(
+                          controller: _toController,
+                          label: 'À',
+                          icon: Icons.person,
+                          focusNode: _toFieldFocusNode,
+                          onFocusChange: (hasFocus) {
+                            if (!hasFocus) {
+                              setState(() => _showSuggestions = false);
+                            } else {
+                              _onToFieldChanged();
+                            }
+                          },
+                        ),
+                        
+                        // Suggestions de contacts
+                        if (_showSuggestions && _filteredContacts.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            decoration: BoxDecoration(
+                              color: widget.themeService.isDarkMode 
+                                ? Colors.grey[800] 
+                                : Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: widget.themeService.isDarkMode 
+                                  ? Colors.grey[600]! 
+                                  : Colors.grey[300]!,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _filteredContacts.length > 5 ? 5 : _filteredContacts.length,
+                              itemBuilder: (context, index) {
+                                final contact = _filteredContacts[index];
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _selectContact(contact),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: widget.themeService.isDarkMode 
+                                              ? Colors.grey[700]! 
+                                              : Colors.grey[200]!,
+                                            width: index < _filteredContacts.length - 1 && index < 4 ? 1 : 0,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Avatar
+                                          Container(
+                                            width: 36,
+                                            height: 36,
+                                            decoration: BoxDecoration(
+                                              gradient: widget.themeService.primaryGradient,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                contact.displayName.isNotEmpty 
+                                                  ? contact.displayName[0].toUpperCase()
+                                                  : 'U',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          
+                                          // Infos contact
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  contact.displayName,
+                                                  style: TextStyle(
+                                                    color: widget.themeService.textColor,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  contact.emailAddress,
+                                                  style: TextStyle(
+                                                    color: widget.themeService.subtitleColor,
+                                                    fontSize: 12,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                if (contact.jobTitle != null)
+                                                  Text(
+                                                    contact.jobTitle!,
+                                                    style: TextStyle(
+                                                      color: widget.themeService.subtitleColor,
+                                                      fontSize: 11,
+                                                      fontStyle: FontStyle.italic,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     
@@ -450,6 +633,8 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    FocusNode? focusNode,
+    Function(bool)? onFocusChange,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -460,27 +645,31 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
         ),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: widget.themeService.subtitleColor,
+      child: Focus(
+        onFocusChange: onFocusChange,
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: TextStyle(
+              color: widget.themeService.subtitleColor,
+            ),
+            prefixIcon: Icon(
+              icon,
+              color: widget.themeService.subtitleColor,
+              size: 20,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
           ),
-          prefixIcon: Icon(
-            icon,
-            color: widget.themeService.subtitleColor,
-            size: 20,
+          style: TextStyle(
+            color: widget.themeService.textColor,
+            fontSize: 15,
           ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
-        ),
-        style: TextStyle(
-          color: widget.themeService.textColor,
-          fontSize: 15,
         ),
       ),
     );
@@ -507,19 +696,43 @@ class _MailScreenState extends State<MailScreen> {
   bool _showEmailDetail = false;
   EmailTab _currentTab = EmailTab.received; // Ajout de l'onglet pour les emails reçus
   List<EmailMessage> _sentEmails = []; // Liste des emails envoyés
+  
+  // Pagination
+  bool _isLoadingMore = false;
+  bool _hasMoreEmails = true;
+  bool _hasMoreSentEmails = true;
+  final ScrollController _emailListScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     // Écouter les changements de thème
     _themeService.addListener(_onThemeChanged);
+    // Écouter le scroll pour charger plus d'emails
+    _emailListScrollController.addListener(_onScroll);
     _checkLoginStatus();
   }
 
   @override
   void dispose() {
     _themeService.removeListener(_onThemeChanged);
+    _emailListScrollController.removeListener(_onScroll);
+    _emailListScrollController.dispose();
     super.dispose();
+  }
+  
+  void _onScroll() {
+    // Charger plus d'emails quand on arrive à 80% du scroll
+    if (_emailListScrollController.position.pixels >= 
+        _emailListScrollController.position.maxScrollExtent * 0.8) {
+      if (!_isLoadingMore) {
+        if (_currentTab == EmailTab.received && _hasMoreEmails) {
+          _loadMoreEmails();
+        } else if (_currentTab == EmailTab.sent && _hasMoreSentEmails) {
+          _loadMoreSentEmails();
+        }
+      }
+    }
   }
 
   void _onThemeChanged() {
@@ -546,13 +759,58 @@ class _MailScreenState extends State<MailScreen> {
   }
 
   Future<void> _loadEmails() async {
-    final emails = await _outlookService.getEmails();
-    setState(() => _emails = emails);
+    final emails = await _outlookService.getEmails(top: 20);
+    setState(() {
+      _emails = emails;
+      _hasMoreEmails = emails.length >= 20;
+    });
   }
 
   Future<void> _loadSentEmails() async {
-    final sentEmails = await _outlookService.getSentEmails();
-    setState(() => _sentEmails = sentEmails);
+    final sentEmails = await _outlookService.getSentEmails(top: 20);
+    setState(() {
+      _sentEmails = sentEmails;
+      _hasMoreSentEmails = sentEmails.length >= 20;
+    });
+  }
+  
+  Future<void> _loadMoreEmails() async {
+    if (_isLoadingMore || !_hasMoreEmails) return;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      // Utiliser le dernier email comme point de départ (skip simulation)
+      final moreEmails = await _outlookService.getEmails(top: 20, skip: _emails.length);
+      
+      setState(() {
+        if (moreEmails.isEmpty || moreEmails.length < 20) {
+          _hasMoreEmails = false;
+        }
+        _emails.addAll(moreEmails);
+      });
+    } finally {
+      setState(() => _isLoadingMore = false);
+    }
+  }
+  
+  Future<void> _loadMoreSentEmails() async {
+    if (_isLoadingMore || !_hasMoreSentEmails) return;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      final moreSentEmails = await _outlookService.getSentEmails(top: 20, skip: _sentEmails.length);
+      
+      setState(() {
+        if (moreSentEmails.isEmpty || moreSentEmails.length < 20) {
+          _hasMoreSentEmails = false;
+        }
+        _sentEmails.addAll(moreSentEmails);
+      });
+    } finally {
+      setState(() => _isLoadingMore = false);
+    }
   }
 
   Future<void> _login() async {
@@ -683,29 +941,30 @@ class _MailScreenState extends State<MailScreen> {
               ),
             ),
           ),
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: IconButton(
-            icon: Icon(
-              Icons.add,
-              color: _themeService.primaryColor,
-              size: 20,
+        if (_isLoggedIn)
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            onPressed: _showNewEmailDialog,
-            tooltip: 'Nouveau mail',
+            child: IconButton(
+              icon: Icon(
+                Icons.add,
+                color: _themeService.primaryColor,
+                size: 20,
+              ),
+              onPressed: _showNewEmailDialog,
+              tooltip: 'Nouveau mail',
+            ),
           ),
-        ),
         Container(
           margin: const EdgeInsets.only(right: 8),
           decoration: BoxDecoration(
@@ -1052,8 +1311,21 @@ class _MailScreenState extends State<MailScreen> {
               ? (_emails.isEmpty
                   ? _buildEmptyEmailList()
                   : ListView.builder(
-                      itemCount: _emails.length,
+                      controller: _emailListScrollController,
+                      itemCount: _emails.length + (_isLoadingMore ? 1 : 0),
                       itemBuilder: (context, index) {
+                        if (index == _emails.length) {
+                          // Indicateur de chargement en bas
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+                              ),
+                            ),
+                          );
+                        }
+                        
                         final email = _emails[index];
                         final isSelected = _selectedEmail?.id == email.id;
                         
@@ -1063,8 +1335,21 @@ class _MailScreenState extends State<MailScreen> {
               : (_sentEmails.isEmpty
                   ? _buildEmptySentEmailList()
                   : ListView.builder(
-                      itemCount: _sentEmails.length,
+                      controller: _emailListScrollController,
+                      itemCount: _sentEmails.length + (_isLoadingMore ? 1 : 0),
                       itemBuilder: (context, index) {
+                        if (index == _sentEmails.length) {
+                          // Indicateur de chargement en bas
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+                              ),
+                            ),
+                          );
+                        }
+                        
                         final email = _sentEmails[index];
                         final isSelected = _selectedEmail?.id == email.id;
                         
@@ -1131,7 +1416,7 @@ class _MailScreenState extends State<MailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            email.senderName,
+                            _cleanStringForDisplay(email.senderName),
                             style: TextStyle(
                               color: _themeService.textColor,
                               fontWeight: email.isRead ? FontWeight.w500 : FontWeight.bold,
@@ -1201,7 +1486,7 @@ class _MailScreenState extends State<MailScreen> {
                 
                 // Sujet
                 Text(
-                  email.subject,
+                  _cleanStringForDisplay(email.subject),
                   style: TextStyle(
                     color: _themeService.textColor,
                     fontWeight: email.isRead ? FontWeight.w400 : FontWeight.w600,
@@ -1214,7 +1499,7 @@ class _MailScreenState extends State<MailScreen> {
                 
                 // Aperçu du contenu
                 Text(
-                  email.bodyPreview,
+                  _cleanStringForDisplay(email.bodyPreview),
                   style: TextStyle(
                     color: _themeService.subtitleColor,
                     fontSize: 13,
@@ -1346,13 +1631,13 @@ class _MailScreenState extends State<MailScreen> {
           
           // Contenu de l'email
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // En-tête de l'email
-                  Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // En-tête de l'email
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
                       Container(
                         width: 50,
@@ -1380,7 +1665,7 @@ class _MailScreenState extends State<MailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _selectedEmail!.senderName,
+                              _cleanStringForDisplay(_selectedEmail!.senderName),
                               style: TextStyle(
                                 color: _themeService.textColor,
                                 fontWeight: FontWeight.bold,
@@ -1406,20 +1691,32 @@ class _MailScreenState extends State<MailScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  
-                  // Contenu de l'email
+                ),
+                const SizedBox(height: 8),
+                
+                // Pièces jointes en haut
+                if (_selectedEmail!.hasAttachments)
                   Container(
-                    width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: _themeService.isDarkMode ? Colors.grey[800] : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
+                      color: _themeService.isDarkMode ? Colors.grey[850] : Colors.grey[50],
+                      border: Border(
+                        bottom: BorderSide(
+                          color: _themeService.isDarkMode ? Colors.grey[800]! : Colors.grey[200]!,
+                        ),
+                      ),
                     ),
+                    child: _buildAttachmentsSection(_selectedEmail!.id),
+                  ),
+                
+                // Contenu de l'email avec WebView
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
                     child: _buildEmailBody(_selectedEmail!.body),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1628,21 +1925,158 @@ class _MailScreenState extends State<MailScreen> {
       );
     }
 
-    // Debug: afficher la longueur du body
-    print('🔍 DEBUG: Body length: ${body.length}');
-    print('🔍 DEBUG: Body preview: ${body.substring(0, body.length > 100 ? 100 : body.length)}');
+    // Créer un HTML enrichi avec des styles adaptés au thème
+    final String htmlContent = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: ${_themeService.isDarkMode ? '#FFFFFF' : '#000000'};
+            background-color: ${_themeService.isDarkMode ? '#1E1E1E' : '#FFFFFF'};
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow-x: hidden;
+            width: 100%;
+        }
+        /* Centrer le contenu des emails */
+        body > table,
+        body > div,
+        body > center {
+            margin: 0 auto !important;
+        }
+        a {
+            color: #0078D4 !important;
+            text-decoration: underline;
+        }
+        img {
+            max-width: 100% !important;
+            height: auto !important;
+            display: block;
+            border: 0;
+        }
+        table {
+            max-width: 100% !important;
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+        td, th {
+            padding: 8px;
+            word-wrap: break-word;
+            vertical-align: top;
+        }
+        /* Supprimer TOUTES les bordures des tableaux */
+        table, td, th, tr {
+            border: none !important;
+        }
+        /* Forcer le contenu à ne pas dépasser */
+        div, p, span, h1, h2, h3, h4, h5, h6 {
+            max-width: 100%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        /* Cacher les éléments vides ou invisibles */
+        [style*="display:none"],
+        [style*="display: none"],
+        [hidden] {
+            display: none !important;
+        }
+        /* Gérer les icônes manquantes - remplacer par du texte */
+        i, .icon, .fa, [class*="icon-"] {
+            font-style: normal;
+        }
+        /* Supprimer les espacements excessifs en haut */
+        body > *:first-child {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+    </style>
+</head>
+<body>
+    $body
+</body>
+</html>
+    ''';
 
-        // Rendu HTML intelligent et stable
-    return _buildSmartHtmlBody(body);
+    // Créer le contrôleur WebView
+    final controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (NavigationRequest request) {
+            // Ouvrir les liens externes dans le navigateur
+            if (request.url.startsWith('http://') || request.url.startsWith('https://')) {
+              launchUrl(Uri.parse(request.url), mode: LaunchMode.externalApplication);
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
+      ..loadHtmlString(htmlContent);
+
+    return WebViewWidget(controller: controller);
   }
 
-  // Méthode de rendu HTML intelligent et stable
-  Widget _buildSmartHtmlBody(String body) {
-    // Nettoyer le HTML pour un affichage propre
-    final cleanBody = _cleanHtmlForDisplay(body);
-    
+  // Afficher la section des pièces jointes
+  Widget _buildAttachmentsSection(String messageId) {
+    return FutureBuilder<List<EmailAttachment>>(
+      future: _outlookService.getAttachments(messageId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final attachments = snapshot.data!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.attach_file, color: _themeService.primaryColor, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Pièces jointes (${attachments.length})',
+                  style: TextStyle(
+                    color: _themeService.textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...attachments.map((attachment) => _buildAttachmentItem(messageId, attachment)),
+          ],
+        );
+      },
+    );
+  }
+
+  // Afficher un élément de pièce jointe
+  Widget _buildAttachmentItem(String messageId, EmailAttachment attachment) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: _themeService.isDarkMode ? Colors.grey[800] : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
@@ -1650,40 +2084,108 @@ class _MailScreenState extends State<MailScreen> {
           color: _themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
         ),
       ),
-      child: SelectableText(
-        cleanBody,
-        style: TextStyle(
-          color: _themeService.textColor,
-          fontSize: 14,
-          height: 1.6,
-          fontFamily: 'Calibri, Helvetica, sans-serif',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _downloadAttachment(messageId, attachment),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Text(
+                  attachment.fileIcon,
+                  style: const TextStyle(fontSize: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        attachment.name,
+                        style: TextStyle(
+                          color: _themeService.textColor,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        attachment.formattedSize,
+                        style: TextStyle(
+                          color: _themeService.subtitleColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.download,
+                  color: _themeService.primaryColor,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  // Nettoyer le HTML pour un affichage lisible
-  String _cleanHtmlForDisplay(String html) {
-    if (html.isEmpty) return 'Aucun contenu';
+  // Télécharger une pièce jointe
+  Future<void> _downloadAttachment(String messageId, EmailAttachment attachment) async {
+    try {
+      _showSnackBar('Téléchargement de ${attachment.name}...', _themeService.primaryColor);
+      
+      final bytes = await _outlookService.downloadAttachment(messageId, attachment.id);
+      
+      if (bytes != null) {
+        if (kIsWeb) {
+          // En mode web, télécharger directement dans le navigateur
+          // TODO: Implémenter le téléchargement web avec html package
+          _showSnackBar('Téléchargement terminé : ${attachment.name}', Colors.green);
+        } else {
+          // Sur mobile/desktop, sauvegarder dans le dossier Documents
+          try {
+            final directory = await getApplicationDocumentsDirectory();
+            final filePath = '${directory.path}/${attachment.name}';
+            final file = File(filePath);
+            
+            await file.writeAsBytes(bytes);
+            
+            _showSnackBar(
+              'Fichier sauvegardé : ${attachment.name}',
+              Colors.green,
+            );
+            
+            // Optionnel : Ouvrir le fichier avec l'application par défaut
+            // await launchUrl(Uri.file(filePath));
+          } catch (e) {
+            _showSnackBar('Erreur lors de la sauvegarde: $e', Colors.red);
+          }
+        }
+      } else {
+        _showSnackBar('Erreur lors du téléchargement', Colors.red);
+      }
+    } catch (e) {
+      _showSnackBar('Erreur: $e', Colors.red);
+    }
+  }
+
+  // Nettoyer les caractères UTF-16 invalides d'une chaîne
+  String _cleanStringForDisplay(String text) {
+    if (text.isEmpty) return text;
     
-    // Supprimer les balises HTML tout en préservant le contenu
-    String clean = html
-        .replaceAll(RegExp(r'<head[^>]*>.*?</head>', dotAll: true), '') // Supprimer <head>
-        .replaceAll(RegExp(r'<style[^>]*>.*?</style>', dotAll: true), '') // Supprimer <style>
-        .replaceAll(RegExp(r'<script[^>]*>.*?</script>', dotAll: true), '') // Supprimer <script>
-        .replaceAll(RegExp(r'<[^>]+>'), '') // Supprimer toutes les autres balises
-        .replaceAll('&nbsp;', ' ') // Remplacer &nbsp; par espace
-        .replaceAll('&amp;', '&') // Remplacer &amp; par &
-        .replaceAll('&lt;', '<') // Remplacer &lt; par <
-        .replaceAll('&gt;', '>') // Remplacer &gt; par >
-        .replaceAll('&quot;', '"') // Remplacer &quot; par "
-        .replaceAll('&#39;', "'") // Remplacer &#39; par '
-        .trim();
-    
-    // Supprimer les lignes vides multiples
-    clean = clean.replaceAll(RegExp(r'\n\s*\n'), '\n\n');
-    
-    return clean.isEmpty ? 'Aucun contenu textuel' : clean;
+    // Supprimer les caractères UTF-16 invalides (surrogates non appariés)
+    return String.fromCharCodes(
+      text.runes.where((rune) {
+        // Garder seulement les caractères valides
+        return rune >= 0x20 && rune != 0xFFFD;
+      }),
+    );
   }
 
   // Afficher le dialogue de nouveau mail
@@ -1694,6 +2196,7 @@ class _MailScreenState extends State<MailScreen> {
       builder: (context) => _OutlookEmailDialog(
         themeService: _themeService,
         type: EmailDialogType.compose,
+        outlookService: _outlookService,
         onSend: (to, subject, body, attachments) async {
           await _sendEmail(to, subject, body, attachments);
           Navigator.of(context).pop();
@@ -1711,6 +2214,7 @@ class _MailScreenState extends State<MailScreen> {
         themeService: _themeService,
         type: EmailDialogType.reply,
         replyTo: email,
+        outlookService: _outlookService,
         onSend: (to, subject, body, attachments) async {
           await _sendEmail(to, subject, body, attachments);
           Navigator.of(context).pop();

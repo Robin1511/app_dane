@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,7 +22,7 @@ class OutlookService {
   static const String redirectUri = kIsWeb 
     ? 'http://localhost:3000' // Pour le web
     : 'appdane://oauth'; // Pour mobile
-  static const String scope = 'https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read offline_access';
+  static const String scope = 'https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read https://graph.microsoft.com/Contacts.Read https://graph.microsoft.com/People.Read offline_access';
   static const String authorizeUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
   static const String tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
   static const String graphApiUrl = 'https://graph.microsoft.com/v1.0';
@@ -206,7 +207,13 @@ class OutlookService {
 
   // Valider le token
   Future<bool> _validateToken() async {
-    if (_accessToken == null || _demoMode) return _demoMode;
+    if (_accessToken == null) return false;
+    
+    // Si c'est un token de démo, retourner true
+    if (_accessToken!.startsWith('demo_access_token')) {
+      _demoMode = true;
+      return true;
+    }
     
     try {
       final response = await http.get(
@@ -259,17 +266,21 @@ class OutlookService {
   }
 
   // Obtenir les emails
-  Future<List<EmailMessage>> getEmails({int top = 20}) async {
+  Future<List<EmailMessage>> getEmails({int top = 20, int skip = 0}) async {
     if (!isLoggedIn) return [];
 
     try {
       // En mode démo, retourner des emails simulés
       if (_demoMode) {
-        return _getDemoEmails();
+        final demoEmails = _getDemoEmails();
+        // Simuler la pagination en mode démo
+        if (skip >= demoEmails.length) return [];
+        final end = (skip + top).clamp(0, demoEmails.length);
+        return demoEmails.sublist(skip, end);
       }
 
       final response = await http.get(
-        Uri.parse('$graphApiUrl/me/messages?\$top=$top&\$orderby=receivedDateTime desc'),
+        Uri.parse('$graphApiUrl/me/messages?\$top=$top&\$skip=$skip&\$orderby=receivedDateTime desc'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Content-Type': 'application/json',
@@ -300,17 +311,21 @@ class OutlookService {
   }
 
   // Obtenir les emails envoyés
-  Future<List<EmailMessage>> getSentEmails({int top = 20}) async {
+  Future<List<EmailMessage>> getSentEmails({int top = 20, int skip = 0}) async {
     if (!isLoggedIn) return [];
 
     try {
       // En mode démo, retourner des emails simulés
       if (_demoMode) {
-        return _getDemoSentEmails();
+        final demoSentEmails = _getDemoSentEmails();
+        // Simuler la pagination en mode démo
+        if (skip >= demoSentEmails.length) return [];
+        final end = (skip + top).clamp(0, demoSentEmails.length);
+        return demoSentEmails.sublist(skip, end);
       }
 
       final response = await http.get(
-        Uri.parse('$graphApiUrl/me/mailFolders/SentItems/messages?\$top=$top&\$orderby=sentDateTime desc'),
+        Uri.parse('$graphApiUrl/me/mailFolders/SentItems/messages?\$top=$top&\$skip=$skip&\$orderby=sentDateTime desc'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Content-Type': 'application/json',
@@ -341,6 +356,90 @@ class OutlookService {
   }
 
 
+
+  // Obtenir les pièces jointes d'un email
+  Future<List<EmailAttachment>> getAttachments(String messageId) async {
+    if (!isLoggedIn) return [];
+
+    try {
+      // En mode démo, retourner des pièces jointes simulées
+      if (_demoMode) {
+        // Seulement pour l'email #2 qui a hasAttachments = true
+        if (messageId == '2') {
+          return [
+            EmailAttachment(
+              id: 'att1',
+              name: 'Ordre_du_jour.pdf',
+              contentType: 'application/pdf',
+              size: 245000,
+              isInline: false,
+            ),
+            EmailAttachment(
+              id: 'att2',
+              name: 'Presentation.pptx',
+              contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              size: 1500000,
+              isInline: false,
+            ),
+          ];
+        }
+        return [];
+      }
+
+      final response = await http.get(
+        Uri.parse('$graphApiUrl/me/messages/$messageId/attachments'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final attachments = data['value'] as List;
+        
+        return attachments.map((att) => EmailAttachment(
+          id: att['id'],
+          name: att['name'] ?? 'Sans nom',
+          contentType: att['contentType'] ?? 'application/octet-stream',
+          size: att['size'] ?? 0,
+          isInline: att['isInline'] ?? false,
+          contentId: att['contentId'],
+        )).toList();
+      }
+    } catch (e) {
+      print('Erreur lors de la récupération des pièces jointes: $e');
+    }
+    return [];
+  }
+
+  // Télécharger une pièce jointe
+  Future<Uint8List?> downloadAttachment(String messageId, String attachmentId) async {
+    if (!isLoggedIn) return null;
+
+    try {
+      // En mode démo, retourner des données simulées
+      if (_demoMode) {
+        await Future.delayed(const Duration(seconds: 1));
+        // Retourner un petit fichier de test
+        return Uint8List.fromList('Contenu du fichier de demonstration'.codeUnits);
+      }
+
+      final response = await http.get(
+        Uri.parse('$graphApiUrl/me/messages/$messageId/attachments/$attachmentId/\$value'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+    } catch (e) {
+      print('Erreur lors du téléchargement de la pièce jointe: $e');
+    }
+    return null;
+  }
 
   // Déconnexion
   Future<void> logout() async {
@@ -470,11 +569,11 @@ class OutlookService {
     return [
       EmailMessage(
         id: '1',
-        subject: '🎉 Bienvenue dans votre app de mails !',
-        sender: 'Équipe Support',
+        subject: 'Bienvenue dans votre app de mails !',
+        sender: 'Equipe Support',
         senderEmail: 'support@example.com',
-        body: '<p>Félicitations ! Votre application de gestion de mails est maintenant configurée.</p><p>Cette interface fonctionne en mode démo avec des données simulées.</p><p>Pour connecter un vrai compte Outlook, suivez les instructions dans la console.</p>',
-        bodyPreview: 'Félicitations ! Votre application de gestion de mails est maintenant configurée.',
+        body: '<p>Felicitations ! Votre application de gestion de mails est maintenant configuree.</p><p>Cette interface fonctionne en mode demo avec des donnees simulees.</p><p>Pour connecter un vrai compte Outlook, suivez les instructions dans la console.</p>',
+        bodyPreview: 'Felicitations ! Votre application de gestion de mails est maintenant configuree.',
         receivedDateTime: now.subtract(const Duration(minutes: 5)),
         isRead: false,
         hasAttachments: false,
@@ -482,11 +581,11 @@ class OutlookService {
       ),
       EmailMessage(
         id: '2',
-        subject: 'Confirmation réunion demain',
+        subject: 'Confirmation reunion demain',
         sender: 'Marie Dubois',
         senderEmail: 'marie.dubois@company.com',
-        body: '<p>Bonjour,<br><br>Je vous confirme notre réunion de demain à 14h en salle de réunion A.<br><br>À l\'ordre du jour :<br>- Point sur l\'avancement<br>- Prochaines étapes<br>- Questions diverses</p><p>Cordialement,<br>Marie</p>',
-        bodyPreview: 'Je vous confirme notre réunion de demain à 14h en salle de réunion A. À l\'ordre du jour : Point sur l\'avancement, prochaines étapes...',
+        body: '<p>Bonjour,<br><br>Je vous confirme notre reunion de demain a 14h en salle de reunion A.<br><br>A l\'ordre du jour :<br>- Point sur l\'avancement<br>- Prochaines etapes<br>- Questions diverses</p><p>Cordialement,<br>Marie</p>',
+        bodyPreview: 'Je vous confirme notre reunion de demain a 14h en salle de reunion A. A l\'ordre du jour : Point sur l\'avancement, prochaines etapes...',
         receivedDateTime: now.subtract(const Duration(hours: 2)),
         isRead: true,
         hasAttachments: true,
@@ -495,10 +594,10 @@ class OutlookService {
       EmailMessage(
         id: '3',
         subject: 'Rapport mensuel disponible',
-        sender: 'Système',
+        sender: 'Systeme',
         senderEmail: 'noreply@system.com',
-        body: '<p>Le rapport mensuel est maintenant disponible dans votre espace personnel.</p><p>Résumé des indicateurs :<br>✅ Objectifs atteints<br>📈 Croissance positive<br>🎯 Nouvelles opportunités identifiées</p>',
-        bodyPreview: 'Le rapport mensuel est maintenant disponible dans votre espace personnel. Résumé des indicateurs : Objectifs atteints, croissance positive...',
+        body: '<p>Le rapport mensuel est maintenant disponible dans votre espace personnel.</p><p>Resume des indicateurs :<br>- Objectifs atteints<br>- Croissance positive<br>- Nouvelles opportunites identifiees</p>',
+        bodyPreview: 'Le rapport mensuel est maintenant disponible dans votre espace personnel. Resume des indicateurs : Objectifs atteints, croissance positive...',
         receivedDateTime: now.subtract(const Duration(hours: 5)),
         isRead: true,
         hasAttachments: true,
@@ -509,8 +608,8 @@ class OutlookService {
         subject: 'Proposition de collaboration',
         sender: 'Pierre Martin',
         senderEmail: 'pierre.martin@partner.com',
-        body: '<p>Bonjour,<br><br>Je souhaiterais vous proposer une collaboration sur un projet innovant dans le domaine du développement mobile.</p><p>Seriez-vous disponible pour un appel cette semaine ?</p><p>Meilleures salutations,<br>Pierre Martin</p>',
-        bodyPreview: 'Je souhaiterais vous proposer une collaboration sur un projet innovant dans le domaine du développement mobile. Seriez-vous disponible pour un appel cette semaine ?',
+        body: '<p>Bonjour,<br><br>Je souhaiterais vous proposer une collaboration sur un projet innovant dans le domaine du developpement mobile.</p><p>Seriez-vous disponible pour un appel cette semaine ?</p><p>Meilleures salutations,<br>Pierre Martin</p>',
+        bodyPreview: 'Je souhaiterais vous proposer une collaboration sur un projet innovant dans le domaine du developpement mobile. Seriez-vous disponible pour un appel cette semaine ?',
         receivedDateTime: now.subtract(const Duration(days: 1)),
         isRead: false,
         hasAttachments: false,
@@ -521,8 +620,8 @@ class OutlookService {
         subject: 'Configuration Outlook - Instructions',
         sender: 'Assistant Configuration',
         senderEmail: 'config@demo.com',
-        body: '<p><strong>Pour connecter un vrai compte Outlook :</strong></p><ol><li>Allez sur <a href="https://portal.azure.com">Azure Portal</a></li><li>Créez une nouvelle "App Registration"</li><li>Configurez les permissions Microsoft Graph</li><li>Remplacez le clientId dans OutlookService</li><li>Configurez les Redirect URIs</li></ol><p>L\'interface est déjà prête pour la production ! 🚀</p>',
-        bodyPreview: 'Pour connecter un vrai compte Outlook : Allez sur Azure Portal, créez une nouvelle App Registration, configurez les permissions Microsoft Graph...',
+        body: '<p><strong>Pour connecter un vrai compte Outlook :</strong></p><ol><li>Allez sur <a href="https://portal.azure.com">Azure Portal</a></li><li>Creez une nouvelle "App Registration"</li><li>Configurez les permissions Microsoft Graph</li><li>Remplacez le clientId dans OutlookService</li><li>Configurez les Redirect URIs</li></ol><p>L\'interface est deja prete pour la production !</p>',
+        bodyPreview: 'Pour connecter un vrai compte Outlook : Allez sur Azure Portal, creez une nouvelle App Registration, configurez les permissions Microsoft Graph...',
         receivedDateTime: now.subtract(const Duration(minutes: 1)),
         isRead: false,
         hasAttachments: false,
@@ -537,11 +636,11 @@ class OutlookService {
     return [
       EmailMessage(
         id: 'sent1',
-        subject: 'Réponse : Confirmation réunion demain',
+        subject: 'Reponse : Confirmation reunion demain',
         sender: 'Moi',
         senderEmail: 'moi@example.com',
-        body: '<p>Bonjour Marie,<br><br>Parfait, je confirme ma présence à la réunion de demain à 14h.<br><br>J\'ai bien noté l\'ordre du jour et je viens avec mes questions.<br><br>Cordialement,<br>Moi</p>',
-        bodyPreview: 'Bonjour Marie, Parfait, je confirme ma présence à la réunion de demain à 14h. J\'ai bien noté l\'ordre du jour et je viens avec mes questions.',
+        body: '<p>Bonjour Marie,<br><br>Parfait, je confirme ma presence a la reunion de demain a 14h.<br><br>J\'ai bien note l\'ordre du jour et je viens avec mes questions.<br><br>Cordialement,<br>Moi</p>',
+        bodyPreview: 'Bonjour Marie, Parfait, je confirme ma presence a la reunion de demain a 14h. J\'ai bien note l\'ordre du jour et je viens avec mes questions.',
         receivedDateTime: now.subtract(const Duration(hours: 1)),
         isRead: true,
         hasAttachments: false,
@@ -558,6 +657,158 @@ class OutlookService {
         isRead: true,
         hasAttachments: false,
         importance: 'normal',
+      ),
+    ];
+  }
+
+  // Obtenir les contacts de l'utilisateur
+  Future<List<Contact>> getContacts() async {
+    if (!isLoggedIn) return [];
+
+    try {
+      // En mode démo, retourner des contacts simulés
+      if (_demoMode) {
+        return _getDemoContacts();
+      }
+
+      // Essayer d'abord l'API /me/people (personnes fréquemment contactées)
+      var response = await http.get(
+        Uri.parse('$graphApiUrl/me/people?\$top=100'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+      
+      // Si /me/people échoue, essayer /me/contacts
+      if (response.statusCode != 200) {
+        response = await http.get(
+          Uri.parse('$graphApiUrl/me/contacts?\$top=100&\$orderby=displayName'),
+          headers: {
+            'Authorization': 'Bearer $_accessToken',
+            'Content-Type': 'application/json',
+          },
+        );
+      }
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final contacts = data['value'] as List;
+        
+        final validContacts = <Contact>[];
+        
+        for (var contact in contacts) {
+          // Récupérer l'email de manière sécurisée (format différent selon /me/people ou /me/contacts)
+          String email = '';
+          String displayName = contact['displayName'] ?? 'Sans nom';
+          String? jobTitle = contact['jobTitle'];
+          String? department = contact['department'];
+          
+          // Format /me/people : scoredEmailAddresses
+          if (contact['scoredEmailAddresses'] != null && 
+              contact['scoredEmailAddresses'] is List && 
+              (contact['scoredEmailAddresses'] as List).isNotEmpty) {
+            email = contact['scoredEmailAddresses'][0]['address'] ?? '';
+          }
+          // Format /me/contacts : emailAddresses
+          else if (contact['emailAddresses'] != null && 
+              contact['emailAddresses'] is List && 
+              (contact['emailAddresses'] as List).isNotEmpty) {
+            email = contact['emailAddresses'][0]['address'] ?? '';
+          }
+          
+          // Ne garder QUE les contacts avec une vraie adresse email
+          if (email.isNotEmpty && email.contains('@')) {
+            validContacts.add(Contact(
+              id: contact['id'] ?? '',
+              displayName: displayName,
+              emailAddress: email,
+              jobTitle: jobTitle,
+              department: department,
+            ));
+          }
+        }
+        
+        return validContacts;
+      }
+    } catch (e) {
+      print('Erreur lors de la récupération des contacts: $e');
+    }
+    return [];
+  }
+
+  // Contacts de démonstration
+  List<Contact> _getDemoContacts() {
+    return [
+      Contact(
+        id: 'c1',
+        displayName: 'Marie Dubois',
+        emailAddress: 'marie.dubois@company.com',
+        jobTitle: 'Chef de projet',
+        department: 'Marketing',
+      ),
+      Contact(
+        id: 'c2',
+        displayName: 'Pierre Martin',
+        emailAddress: 'pierre.martin@partner.com',
+        jobTitle: 'Directeur Technique',
+        department: 'IT',
+      ),
+      Contact(
+        id: 'c3',
+        displayName: 'Sophie Laurent',
+        emailAddress: 'sophie.laurent@company.com',
+        jobTitle: 'Développeuse Senior',
+        department: 'Développement',
+      ),
+      Contact(
+        id: 'c4',
+        displayName: 'Thomas Bernard',
+        emailAddress: 'thomas.bernard@client.com',
+        jobTitle: 'Responsable Commercial',
+        department: 'Ventes',
+      ),
+      Contact(
+        id: 'c5',
+        displayName: 'Julie Petit',
+        emailAddress: 'julie.petit@company.com',
+        jobTitle: 'Designer UX/UI',
+        department: 'Design',
+      ),
+      Contact(
+        id: 'c6',
+        displayName: 'Luc Moreau',
+        emailAddress: 'luc.moreau@partner.com',
+        jobTitle: 'Consultant',
+        department: 'Conseil',
+      ),
+      Contact(
+        id: 'c7',
+        displayName: 'Emma Rousseau',
+        emailAddress: 'emma.rousseau@company.com',
+        jobTitle: 'Product Manager',
+        department: 'Produit',
+      ),
+      Contact(
+        id: 'c8',
+        displayName: 'Nicolas Simon',
+        emailAddress: 'nicolas.simon@client.com',
+        jobTitle: 'CTO',
+        department: 'Direction',
+      ),
+      Contact(
+        id: 'c9',
+        displayName: 'Camille Garnier',
+        emailAddress: 'camille.garnier@company.com',
+        jobTitle: 'Data Analyst',
+        department: 'Analytics',
+      ),
+      Contact(
+        id: 'c10',
+        displayName: 'Alexandre Durand',
+        emailAddress: 'alexandre.durand@partner.com',
+        jobTitle: 'Architecte Logiciel',
+        department: 'Architecture',
       ),
     ];
   }
@@ -603,4 +854,58 @@ class EmailMessage {
 
   // Getter pour compatibilité avec le nouveau code
   String get senderName => sender;
+}
+
+class Contact {
+  final String id;
+  final String displayName;
+  final String emailAddress;
+  final String? jobTitle;
+  final String? department;
+
+  Contact({
+    required this.id,
+    required this.displayName,
+    required this.emailAddress,
+    this.jobTitle,
+    this.department,
+  });
+}
+
+class EmailAttachment {
+  final String id;
+  final String name;
+  final String contentType;
+  final int size;
+  final bool isInline;
+  final String? contentId;
+
+  EmailAttachment({
+    required this.id,
+    required this.name,
+    required this.contentType,
+    required this.size,
+    this.isInline = false,
+    this.contentId,
+  });
+
+  // Formater la taille du fichier
+  String get formattedSize {
+    if (size < 1024) return '$size B';
+    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
+    return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  // Obtenir l'icône en fonction du type de fichier
+  String get fileIcon {
+    if (contentType.startsWith('image/')) return '🖼️';
+    if (contentType.startsWith('video/')) return '🎥';
+    if (contentType.startsWith('audio/')) return '🎵';
+    if (contentType.contains('pdf')) return '📄';
+    if (contentType.contains('word') || contentType.contains('document')) return '📝';
+    if (contentType.contains('excel') || contentType.contains('spreadsheet')) return '📊';
+    if (contentType.contains('powerpoint') || contentType.contains('presentation')) return '📽️';
+    if (contentType.contains('zip') || contentType.contains('rar') || contentType.contains('compressed')) return '📦';
+    return '📎';
+  }
 } 

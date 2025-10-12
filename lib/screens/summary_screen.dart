@@ -153,6 +153,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
   // Variables pour l'édition des titres et sous-titres
   Map<String, TextEditingController> _titleControllers = {};
   Map<String, TextEditingController> _subTitleControllers = {};
+  Map<String, FocusNode> _titleFocusNodes = {};
+  Map<String, FocusNode> _subTitleFocusNodes = {};
   Map<String, bool> _isEditingTitle = {};
   Map<String, bool> _isEditingSubTitle = {};
 
@@ -187,6 +189,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
     _titleControllers.values.forEach((controller) => controller.dispose());
     _subTitleControllers.values.forEach((controller) => controller.dispose());
     
+    // Nettoyer tous les FocusNode
+    _titleFocusNodes.values.forEach((focusNode) => focusNode.dispose());
+    _subTitleFocusNodes.values.forEach((focusNode) => focusNode.dispose());
+    
     _descriptifControllers.clear();
     _quantiteControllers.clear();
     _longueurControllers.clear();
@@ -195,6 +201,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
     _coefControllers.clear();
     _titleControllers.clear();
     _subTitleControllers.clear();
+    _titleFocusNodes.clear();
+    _subTitleFocusNodes.clear();
     
     // Nettoyer les variables de swipe et d'édition
     _swipeOffsets.clear();
@@ -1782,6 +1790,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               _titleControllers['main_$mainIndex'] = TextEditingController(text: mainTitle.name);
                               return _titleControllers['main_$mainIndex']!;
                             })(),
+                            focusNode: _titleFocusNodes['main_$mainIndex'] ?? (() {
+                              _titleFocusNodes['main_$mainIndex'] = FocusNode();
+                              _titleFocusNodes['main_$mainIndex']!.addListener(() {
+                                if (!_titleFocusNodes['main_$mainIndex']!.hasFocus) {
+                                  // Sauvegarder quand le focus est perdu
+                                  _safeSetState(() {
+                                    mainTitle.name = _titleControllers['main_$mainIndex']!.text;
+                                    _isEditingTitle['main_$mainIndex'] = false;
+                                  });
+                                }
+                              });
+                              return _titleFocusNodes['main_$mainIndex']!;
+                            })(),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -2081,6 +2102,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             controller: _subTitleControllers['sub_${mainIndex}_${subIndex}'] ?? (() {
                               _subTitleControllers['sub_${mainIndex}_${subIndex}'] = TextEditingController(text: subTitle.name);
                               return _subTitleControllers['sub_${mainIndex}_${subIndex}']!;
+                            })(),
+                            focusNode: _subTitleFocusNodes['sub_${mainIndex}_${subIndex}'] ?? (() {
+                              _subTitleFocusNodes['sub_${mainIndex}_${subIndex}'] = FocusNode();
+                              _subTitleFocusNodes['sub_${mainIndex}_${subIndex}']!.addListener(() {
+                                if (!_subTitleFocusNodes['sub_${mainIndex}_${subIndex}']!.hasFocus) {
+                                  // Sauvegarder quand le focus est perdu
+                                  _safeSetState(() {
+                                    subTitle.name = _subTitleControllers['sub_${mainIndex}_${subIndex}']!.text;
+                                    _isEditingSubTitle['sub_${mainIndex}_${subIndex}'] = false;
+                                  });
+                                }
+                              });
+                              return _subTitleFocusNodes['sub_${mainIndex}_${subIndex}']!;
                             })(),
                             style: const TextStyle(
                               color: Colors.white,

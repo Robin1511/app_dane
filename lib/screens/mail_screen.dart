@@ -9,12 +9,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 
 // Types de dialogue email
 enum EmailDialogType { compose, reply }
 
 // Types d'onglets email
-enum EmailTab { received, sent }
+enum EmailTab { received, sent, spam }
 
 // Composant de dialogue email style Outlook moderne
 class _OutlookEmailDialog extends StatefulWidget {
@@ -39,6 +41,7 @@ class _OutlookEmailDialog extends StatefulWidget {
 
 class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
   late TextEditingController _toController;
+  late TextEditingController _ccController;
   late TextEditingController _subjectController;
   late TextEditingController _bodyController;
   final List<PlatformFile> _attachments = [];
@@ -47,8 +50,11 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
   // Autocomplétion des contacts
   List<Contact> _allContacts = [];
   List<Contact> _filteredContacts = [];
+  List<Contact> _filteredCcContacts = [];
   bool _showSuggestions = false;
+  bool _showCcSuggestions = false;
   final FocusNode _toFieldFocusNode = FocusNode();
+  final FocusNode _ccFieldFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -56,6 +62,7 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
     _toController = TextEditingController(
       text: widget.replyTo?.senderEmail ?? '',
     );
+    _ccController = TextEditingController();
     _subjectController = TextEditingController(
       text: widget.type == EmailDialogType.reply 
         ? 'Re: ${widget.replyTo?.subject ?? ''}' 
@@ -68,16 +75,20 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
     );
     
     _toController.addListener(_onToFieldChanged);
+    _ccController.addListener(_onCcFieldChanged);
     _loadContacts();
   }
 
   @override
   void dispose() {
     _toController.removeListener(_onToFieldChanged);
+    _ccController.removeListener(_onCcFieldChanged);
     _toController.dispose();
+    _ccController.dispose();
     _subjectController.dispose();
     _bodyController.dispose();
     _toFieldFocusNode.dispose();
+    _ccFieldFocusNode.dispose();
     super.dispose();
   }
 
@@ -110,10 +121,39 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
     });
   }
 
+  void _onCcFieldChanged() {
+    final query = _ccController.text.toLowerCase();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _showCcSuggestions = false;
+        _filteredCcContacts = [];
+      });
+      return;
+    }
+    
+    final filtered = _allContacts.where((contact) {
+      return contact.displayName.toLowerCase().contains(query) ||
+             contact.emailAddress.toLowerCase().contains(query);
+    }).toList();
+    
+    setState(() {
+      _filteredCcContacts = filtered;
+      _showCcSuggestions = filtered.isNotEmpty;
+    });
+  }
+
   void _selectContact(Contact contact) {
     _toController.text = contact.emailAddress;
     setState(() {
       _showSuggestions = false;
+    });
+  }
+
+  void _selectCcContact(Contact contact) {
+    _ccController.text = contact.emailAddress;
+    setState(() {
+      _showCcSuggestions = false;
     });
   }
 
@@ -170,6 +210,309 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
       );
     } finally {
       setState(() => _isSending = false);
+    }
+  }
+
+  void _showAIGenerateDialog() {
+    final TextEditingController specificationsController = TextEditingController();
+    bool isGenerating = false;
+    bool useExistingContent = _bodyController.text.trim().isNotEmpty;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: widget.themeService.surfaceColor,
+            title: Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  color: Colors.purple.shade400,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Générer avec IA',
+                    style: TextStyle(
+                      color: widget.themeService.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (useExistingContent) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue.shade400,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'L\'IA utilisera le contenu actuel comme base',
+                            style: TextStyle(
+                              color: widget.themeService.textColor,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                Text(
+                  'Instructions pour l\'IA',
+                  style: TextStyle(
+                    color: widget.themeService.textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  constraints: const BoxConstraints(minHeight: 120, maxHeight: 200),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: widget.themeService.isDarkMode 
+                        ? Colors.grey[600]! 
+                        : Colors.grey[300]!,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: TextField(
+                    controller: specificationsController,
+                    maxLines: null,
+                    enabled: !isGenerating,
+                    decoration: InputDecoration(
+                      hintText: useExistingContent 
+                        ? 'Ex: Rendre plus formel, ajouter des détails techniques...'
+                        : 'Ex: Rédiger un email de demande de rendez-vous professionnel...',
+                      hintStyle: TextStyle(
+                        color: widget.themeService.subtitleColor,
+                        fontSize: 13,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                    style: TextStyle(
+                      color: widget.themeService.textColor,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                if (isGenerating) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.purple.shade400,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Génération en cours...',
+                        style: TextStyle(
+                          color: widget.themeService.subtitleColor,
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isGenerating ? null : () => Navigator.of(context).pop(),
+                child: Text(
+                  'Annuler',
+                  style: TextStyle(
+                    color: isGenerating 
+                      ? widget.themeService.subtitleColor.withOpacity(0.5)
+                      : widget.themeService.subtitleColor,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: isGenerating ? null : () async {
+                  if (specificationsController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Veuillez entrer des instructions'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
+                  setDialogState(() => isGenerating = true);
+
+                  try {
+                    final generatedText = await _generateEmailContent(
+                      specificationsController.text.trim(),
+                      useExistingContent ? _bodyController.text : null,
+                      _subjectController.text,
+                    );
+
+                    Navigator.of(context).pop();
+
+                    if (generatedText != null) {
+                      setState(() {
+                        _bodyController.text = generatedText;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Contenu généré avec succès !'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Erreur lors de la génération'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erreur: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isGenerating 
+                    ? Colors.grey 
+                    : Colors.purple.shade400,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.auto_awesome, size: 18),
+                    const SizedBox(width: 8),
+                    Text(isGenerating ? 'Génération...' : 'Générer'),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<String?> _generateEmailContent(String instructions, String? existingContent, String subject) async {
+    try {
+      await dotenv.load(fileName: ".env");
+      final apiKey = dotenv.env['FIREWORK_APIKEY'];
+      
+      if (apiKey == null || apiKey.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Clé API Fireworks non configurée'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return null;
+      }
+
+      String prompt;
+      if (existingContent != null && existingContent.isNotEmpty) {
+        prompt = '''Améliore/Modifie ce contenu d'email selon ces instructions :
+
+Sujet de l'email: $subject
+
+Contenu actuel:
+$existingContent
+
+Instructions:
+$instructions
+
+Génère le nouveau contenu en gardant un ton professionnel. Ne mets pas de formule de politesse de début (Cher/Chère) ni de signature.''';
+      } else {
+        prompt = '''Rédige le contenu d'un email professionnel selon ces instructions :
+
+Sujet: $subject
+
+Instructions:
+$instructions
+
+Génère uniquement le contenu du message, sans formule de début (pas de "Cher/Chère") ni de signature. Sois professionnel et concis.''';
+      }
+
+      final response = await http.post(
+        Uri.parse('https://api.fireworks.ai/inference/v1/chat/completions'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'accounts/fireworks/models/deepseek-v3p1-terminus',
+          'max_tokens': 20480,
+          'top_p': 1,
+          'top_k': 40,
+          'presence_penalty': 0,
+          'frequency_penalty': 0,
+          'temperature': 0.6,
+          'messages': [
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ]
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'] as String;
+        return content.trim();
+      } else {
+        print('Erreur API Fireworks: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Erreur lors de l\'appel à l\'IA: $e');
+      return null;
     }
   }
 
@@ -372,6 +715,144 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
                     ),
                     const SizedBox(height: 16),
                     
+                    // Champ CC (Copie) avec autocomplétion
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInputField(
+                          controller: _ccController,
+                          label: 'Cc (Copie)',
+                          icon: Icons.person_add_alt,
+                          focusNode: _ccFieldFocusNode,
+                          onFocusChange: (hasFocus) {
+                            if (!hasFocus) {
+                              setState(() => _showCcSuggestions = false);
+                            } else {
+                              _onCcFieldChanged();
+                            }
+                          },
+                        ),
+                        
+                        // Suggestions de contacts pour CC
+                        if (_showCcSuggestions && _filteredCcContacts.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            decoration: BoxDecoration(
+                              color: widget.themeService.isDarkMode 
+                                ? Colors.grey[800] 
+                                : Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: widget.themeService.isDarkMode 
+                                  ? Colors.grey[600]! 
+                                  : Colors.grey[300]!,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _filteredCcContacts.length > 5 ? 5 : _filteredCcContacts.length,
+                              itemBuilder: (context, index) {
+                                final contact = _filteredCcContacts[index];
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _selectCcContact(contact),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: widget.themeService.isDarkMode 
+                                              ? Colors.grey[700]! 
+                                              : Colors.grey[200]!,
+                                            width: index < _filteredCcContacts.length - 1 && index < 4 ? 1 : 0,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Avatar
+                                          Container(
+                                            width: 36,
+                                            height: 36,
+                                            decoration: BoxDecoration(
+                                              gradient: widget.themeService.primaryGradient,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                contact.displayName.isNotEmpty 
+                                                  ? contact.displayName[0].toUpperCase()
+                                                  : 'U',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          
+                                          // Infos contact
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  contact.displayName,
+                                                  style: TextStyle(
+                                                    color: widget.themeService.textColor,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  contact.emailAddress,
+                                                  style: TextStyle(
+                                                    color: widget.themeService.subtitleColor,
+                                                    fontSize: 12,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                if (contact.jobTitle != null)
+                                                  Text(
+                                                    contact.jobTitle!,
+                                                    style: TextStyle(
+                                                      color: widget.themeService.subtitleColor,
+                                                      fontSize: 11,
+                                                      fontStyle: FontStyle.italic,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
                     // Champ Objet
                     _buildInputField(
                       controller: _subjectController,
@@ -412,68 +893,85 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                                                         ...(_attachments.asMap().entries.map((entry) {
-                               final index = entry.key;
-                               final attachment = entry.value;
-                               return Container(
-                                 margin: const EdgeInsets.only(bottom: 4),
-                                 padding: const EdgeInsets.symmetric(
-                                   horizontal: 8,
-                                   vertical: 4,
-                                 ),
-                                 decoration: BoxDecoration(
-                                   color: widget.themeService.backgroundColor,
-                                   borderRadius: BorderRadius.circular(4),
-                                 ),
-                                 child: Row(
-                                   children: [
-                                     Icon(
-                                       _getFileIcon(attachment.extension ?? ''),
-                                       size: 16,
-                                       color: widget.themeService.primaryColor,
-                                     ),
-                                     const SizedBox(width: 8),
-                                     Expanded(
-                                       child: Column(
-                                         crossAxisAlignment: CrossAxisAlignment.start,
-                                         children: [
-                                           Text(
-                                             attachment.name,
-                                             style: TextStyle(
-                                               color: widget.themeService.textColor,
-                                               fontWeight: FontWeight.w500,
-                                             ),
-                                           ),
-                                           Text(
-                                             '${(attachment.size / 1024).toStringAsFixed(1)} KB',
-                                             style: TextStyle(
-                                               color: widget.themeService.subtitleColor,
-                                               fontSize: 12,
-                                             ),
-                                           ),
-                                         ],
-                                       ),
-                                     ),
-                                     IconButton(
-                                       onPressed: () => _removeAttachment(index),
-                                       icon: const Icon(Icons.close, size: 16),
-                                       padding: EdgeInsets.zero,
-                                       constraints: const BoxConstraints(
-                                         minWidth: 24,
-                                         minHeight: 24,
-                                       ),
-                                     ),
-                                   ],
-                                 ),
-                               );
-                             })),
+                            // Défilement horizontal des pièces jointes
+                            SizedBox(
+                              height: 95,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _attachments.length,
+                                itemBuilder: (context, index) {
+                                  final attachment = _attachments[index];
+                                  return Container(
+                                    width: 180,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: widget.themeService.backgroundColor,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              _getFileIcon(attachment.extension ?? ''),
+                                              size: 22,
+                                              color: widget.themeService.primaryColor,
+                                            ),
+                                            const Spacer(),
+                                            InkWell(
+                                              onTap: () => _removeAttachment(index),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.withOpacity(0.1),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.close,
+                                                  size: 16,
+                                                  color: Colors.red,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Flexible(
+                                          child: Text(
+                                            attachment.name,
+                                            style: TextStyle(
+                                              color: widget.themeService.textColor,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '${(attachment.size / 1024).toStringAsFixed(1)} KB',
+                                          style: TextStyle(
+                                            color: widget.themeService.subtitleColor,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
                     ],
                     
-                    // Bouton ajouter pièce jointe
+                    // Boutons pièce jointe et IA
                     Row(
                       children: [
                         ElevatedButton.icon(
@@ -488,6 +986,27 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: _showAIGenerateDialog,
+                          icon: Icon(
+                            Icons.auto_awesome,
+                            size: 18,
+                            color: Colors.purple.shade400,
+                          ),
+                          label: Text(
+                            'Générer avec IA',
+                            style: TextStyle(color: Colors.purple.shade400),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple.withOpacity(0.1),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(color: Colors.purple.shade400),
                             ),
                           ),
                         ),
@@ -676,6 +1195,532 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
   }
 }
 
+// Dialogue d'email avec contenu IA pré-rempli
+class _OutlookEmailDialogWithAI extends StatefulWidget {
+  final ThemeService themeService;
+  final EmailMessage replyTo;
+  final String aiGeneratedBody;
+  final Function(String to, String subject, String body, List<PlatformFile> attachments) onSend;
+  final OutlookService outlookService;
+
+  const _OutlookEmailDialogWithAI({
+    super.key,
+    required this.themeService,
+    required this.replyTo,
+    required this.aiGeneratedBody,
+    required this.onSend,
+    required this.outlookService,
+  });
+
+  @override
+  State<_OutlookEmailDialogWithAI> createState() => _OutlookEmailDialogWithAIState();
+}
+
+class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
+  late TextEditingController _toController;
+  late TextEditingController _ccController;
+  late TextEditingController _subjectController;
+  late TextEditingController _bodyController;
+  final List<PlatformFile> _attachments = [];
+  bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _toController = TextEditingController(text: widget.replyTo.senderEmail);
+    _ccController = TextEditingController();
+    _subjectController = TextEditingController(text: 'Re: ${widget.replyTo.subject}');
+    _bodyController = TextEditingController(text: widget.aiGeneratedBody);
+  }
+
+  @override
+  void dispose() {
+    _toController.dispose();
+    _ccController.dispose();
+    _subjectController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addAttachment() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.any,
+        allowCompression: false,
+      );
+
+      if (result != null) {
+        setState(() {
+          _attachments.addAll(result.files);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la sélection: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _removeAttachment(int index) {
+    setState(() {
+      _attachments.removeAt(index);
+    });
+  }
+
+  Future<void> _sendEmail() async {
+    if (_toController.text.trim().isEmpty || 
+        _subjectController.text.trim().isEmpty || 
+        _bodyController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Veuillez remplir tous les champs'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSending = true);
+    
+    try {
+      await widget.onSend(
+        _toController.text.trim(),
+        _subjectController.text.trim(),
+        _bodyController.text.trim(),
+        _attachments,
+      );
+    } finally {
+      setState(() => _isSending = false);
+    }
+  }
+
+  IconData _getFileIcon(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return Icons.image;
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+        return Icons.video_file;
+      case 'mp3':
+      case 'wav':
+        return Icons.audio_file;
+      case 'zip':
+      case 'rar':
+        return Icons.archive;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: BoxDecoration(
+          color: widget.themeService.surfaceColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header style Outlook avec badge IA
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.purple.shade400,
+                    Colors.blue.shade400,
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.auto_awesome,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Réponse générée par IA',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Contenu du dialogue
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // Info badge
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.purple.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.purple.shade400,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Vous pouvez modifier le contenu avant d\'envoyer',
+                              style: TextStyle(
+                                color: widget.themeService.textColor,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Champ À
+                    _buildInputField(
+                      controller: _toController,
+                      label: 'À',
+                      icon: Icons.person,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Champ CC (Copie)
+                    _buildInputField(
+                      controller: _ccController,
+                      label: 'Cc (Copie)',
+                      icon: Icons.person_add_alt,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Champ Objet
+                    _buildInputField(
+                      controller: _subjectController,
+                      label: 'Objet',
+                      icon: Icons.subject,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Pièces jointes
+                    if (_attachments.isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: widget.themeService.isDarkMode 
+                            ? Colors.grey[800]! 
+                            : Colors.grey[100]!,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.attach_file,
+                                  size: 16,
+                                  color: widget.themeService.subtitleColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Pièces jointes (${_attachments.length})',
+                                  style: TextStyle(
+                                    color: widget.themeService.subtitleColor,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 90,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _attachments.length,
+                                itemBuilder: (context, index) {
+                                  final attachment = _attachments[index];
+                                  return Container(
+                                    width: 160,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: widget.themeService.backgroundColor,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              _getFileIcon(attachment.extension ?? ''),
+                                              size: 20,
+                                              color: widget.themeService.primaryColor,
+                                            ),
+                                            const Spacer(),
+                                            InkWell(
+                                              onTap: () => _removeAttachment(index),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.withOpacity(0.1),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.close,
+                                                  size: 14,
+                                                  color: Colors.red,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Expanded(
+                                          child: Text(
+                                            attachment.name,
+                                            style: TextStyle(
+                                              color: widget.themeService.textColor,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${(attachment.size / 1024).toStringAsFixed(1)} KB',
+                                          style: TextStyle(
+                                            color: widget.themeService.subtitleColor,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    
+                    // Bouton ajouter pièce jointe
+                    Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _addAttachment,
+                          icon: const Icon(Icons.attach_file, size: 18),
+                          label: const Text('Ajouter une pièce jointe'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.themeService.isDarkMode 
+                              ? Colors.grey[700]! 
+                              : Colors.grey[200]!,
+                            foregroundColor: widget.themeService.textColor,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Champ Message
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.purple.shade200,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: TextField(
+                          controller: _bodyController,
+                          maxLines: null,
+                          expands: true,
+                          decoration: InputDecoration(
+                            hintText: 'Modifiez la réponse si nécessaire...',
+                            hintStyle: TextStyle(
+                              color: widget.themeService.subtitleColor,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.all(16),
+                          ),
+                          style: TextStyle(
+                            color: widget.themeService.textColor,
+                            fontSize: 15,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Footer avec boutons
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: widget.themeService.isDarkMode 
+                  ? Colors.grey[850]! 
+                  : Colors.grey[100]!,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _isSending ? null : () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Annuler',
+                      style: TextStyle(color: widget.themeService.subtitleColor),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _isSending ? null : _sendEmail,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple.shade400,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.send, size: 18),
+                            SizedBox(width: 8),
+                            Text('Envoyer'),
+                          ],
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: widget.themeService.isDarkMode 
+            ? Colors.grey[600]! 
+            : Colors.grey[300]!,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: widget.themeService.subtitleColor,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: widget.themeService.subtitleColor,
+            size: 20,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+        ),
+        style: TextStyle(
+          color: widget.themeService.textColor,
+          fontSize: 15,
+        ),
+      ),
+    );
+  }
+}
+
 class MailScreen extends StatefulWidget {
   const MailScreen({super.key});
 
@@ -696,11 +1741,13 @@ class _MailScreenState extends State<MailScreen> {
   bool _showEmailDetail = false;
   EmailTab _currentTab = EmailTab.received; // Ajout de l'onglet pour les emails reçus
   List<EmailMessage> _sentEmails = []; // Liste des emails envoyés
+  List<EmailMessage> _spamEmails = []; // Liste des emails spam
   
   // Pagination
   bool _isLoadingMore = false;
   bool _hasMoreEmails = true;
   bool _hasMoreSentEmails = true;
+  bool _hasMoreSpamEmails = true;
   final ScrollController _emailListScrollController = ScrollController();
 
   @override
@@ -730,6 +1777,8 @@ class _MailScreenState extends State<MailScreen> {
           _loadMoreEmails();
         } else if (_currentTab == EmailTab.sent && _hasMoreSentEmails) {
           _loadMoreSentEmails();
+        } else if (_currentTab == EmailTab.spam && _hasMoreSpamEmails) {
+          _loadMoreSpamEmails();
         }
       }
     }
@@ -749,6 +1798,7 @@ class _MailScreenState extends State<MailScreen> {
       await _loadUserInfo();
       await _loadEmails();
       await _loadSentEmails(); // Charger les emails envoyés
+      await _loadSpamEmails(); // Charger les emails spam
     }
     
     setState(() => _isLoading = false);
@@ -771,6 +1821,14 @@ class _MailScreenState extends State<MailScreen> {
     setState(() {
       _sentEmails = sentEmails;
       _hasMoreSentEmails = sentEmails.length >= 20;
+    });
+  }
+
+  Future<void> _loadSpamEmails() async {
+    final spamEmails = await _outlookService.getSpamEmails(top: 20);
+    setState(() {
+      _spamEmails = spamEmails;
+      _hasMoreSpamEmails = spamEmails.length >= 20;
     });
   }
   
@@ -813,6 +1871,25 @@ class _MailScreenState extends State<MailScreen> {
     }
   }
 
+  Future<void> _loadMoreSpamEmails() async {
+    if (_isLoadingMore || !_hasMoreSpamEmails) return;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      final moreSpamEmails = await _outlookService.getSpamEmails(top: 20, skip: _spamEmails.length);
+      
+      setState(() {
+        if (moreSpamEmails.isEmpty || moreSpamEmails.length < 20) {
+          _hasMoreSpamEmails = false;
+        }
+        _spamEmails.addAll(moreSpamEmails);
+      });
+    } finally {
+      setState(() => _isLoadingMore = false);
+    }
+  }
+
   Future<void> _login() async {
     setState(() => _isLoading = true);
     
@@ -836,6 +1913,7 @@ class _MailScreenState extends State<MailScreen> {
       _userInfo = null;
       _emails.clear();
       _sentEmails.clear(); // Clear sent emails on logout
+      _spamEmails.clear(); // Clear spam emails on logout
       _selectedEmail = null;
       _showEmailDetail = false;
       _currentTab = EmailTab.received; // Reset tab
@@ -1053,7 +2131,7 @@ class _MailScreenState extends State<MailScreen> {
   Widget _buildEmailListWithTabs() {
     return Column(
       children: [
-        // Onglets pour séparer reçus/envoyés
+        // Onglets pour séparer reçus/envoyés/spam
         Container(
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1081,6 +2159,7 @@ class _MailScreenState extends State<MailScreen> {
                             ? Colors.white
                             : _themeService.textColor,
                           fontWeight: FontWeight.w600,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -1106,6 +2185,33 @@ class _MailScreenState extends State<MailScreen> {
                             ? Colors.white
                             : _themeService.textColor,
                           fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _currentTab = EmailTab.spam),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _currentTab == EmailTab.spam
+                        ? _themeService.primaryColor
+                        : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Spam (${_spamEmails.length})',
+                        style: TextStyle(
+                          color: _currentTab == EmailTab.spam
+                            ? Colors.white
+                            : _themeService.textColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -1278,7 +2384,11 @@ class _MailScreenState extends State<MailScreen> {
             child: Row(
               children: [
                 Text(
-                  _currentTab == EmailTab.received ? 'Boîte de réception' : 'Emails envoyés',
+                  _currentTab == EmailTab.received 
+                    ? 'Boîte de réception' 
+                    : _currentTab == EmailTab.sent 
+                      ? 'Emails envoyés' 
+                      : 'Courrier indésirable',
                   style: TextStyle(
                     color: _themeService.textColor,
                     fontSize: 18,
@@ -1293,7 +2403,11 @@ class _MailScreenState extends State<MailScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    _currentTab == EmailTab.received ? '${_emails.length}' : '${_sentEmails.length}',
+                    _currentTab == EmailTab.received 
+                      ? '${_emails.length}' 
+                      : _currentTab == EmailTab.sent 
+                        ? '${_sentEmails.length}' 
+                        : '${_spamEmails.length}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -1332,30 +2446,55 @@ class _MailScreenState extends State<MailScreen> {
                         return _buildEmailItem(email, isSelected);
                       },
                     ))
-              : (_sentEmails.isEmpty
-                  ? _buildEmptySentEmailList()
-                  : ListView.builder(
-                      controller: _emailListScrollController,
-                      itemCount: _sentEmails.length + (_isLoadingMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _sentEmails.length) {
-                          // Indicateur de chargement en bas
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+              : _currentTab == EmailTab.sent
+                ? (_sentEmails.isEmpty
+                    ? _buildEmptySentEmailList()
+                    : ListView.builder(
+                        controller: _emailListScrollController,
+                        itemCount: _sentEmails.length + (_isLoadingMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == _sentEmails.length) {
+                            // Indicateur de chargement en bas
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+                                ),
                               ),
-                            ),
-                          );
-                        }
-                        
-                        final email = _sentEmails[index];
-                        final isSelected = _selectedEmail?.id == email.id;
-                        
-                        return _buildEmailItem(email, isSelected);
-                      },
-                    )),
+                            );
+                          }
+                          
+                          final email = _sentEmails[index];
+                          final isSelected = _selectedEmail?.id == email.id;
+                          
+                          return _buildEmailItem(email, isSelected);
+                        },
+                      ))
+                : (_spamEmails.isEmpty
+                    ? _buildEmptySpamEmailList()
+                    : ListView.builder(
+                        controller: _emailListScrollController,
+                        itemCount: _spamEmails.length + (_isLoadingMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == _spamEmails.length) {
+                            // Indicateur de chargement en bas
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+                                ),
+                              ),
+                            );
+                          }
+                          
+                          final email = _spamEmails[index];
+                          final isSelected = _selectedEmail?.id == email.id;
+                          
+                          return _buildEmailItem(email, isSelected);
+                        },
+                      )),
           ),
         ],
       ),
@@ -1484,16 +2623,40 @@ class _MailScreenState extends State<MailScreen> {
                 ),
                 const SizedBox(height: 8),
                 
-                // Sujet
-                Text(
-                  _cleanStringForDisplay(email.subject),
-                  style: TextStyle(
-                    color: _themeService.textColor,
-                    fontWeight: email.isRead ? FontWeight.w400 : FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                // Sujet avec indicateur de conversation
+                Row(
+                  children: [
+                    // Indicateur de conversation (RE:/FWD:)
+                    if (email.subject.toUpperCase().startsWith('RE:') || 
+                        email.subject.toUpperCase().startsWith('FWD:'))
+                      Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _themeService.primaryColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Icon(
+                          email.subject.toUpperCase().startsWith('RE:')
+                            ? Icons.reply
+                            : Icons.forward,
+                          size: 12,
+                          color: _themeService.primaryColor,
+                        ),
+                      ),
+                    Expanded(
+                      child: Text(
+                        _cleanStringForDisplay(email.subject),
+                        style: TextStyle(
+                          color: _themeService.textColor,
+                          fontWeight: email.isRead ? FontWeight.w400 : FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 
@@ -1569,6 +2732,38 @@ class _MailScreenState extends State<MailScreen> {
           const SizedBox(height: 8),
           Text(
             'Vous n\'avez pas encore d\'email envoyé',
+            style: TextStyle(
+              color: _themeService.subtitleColor,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptySpamEmailList() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.report_gmailerrorred,
+            size: 64,
+            color: _themeService.subtitleColor,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Aucun spam',
+            style: TextStyle(
+              color: _themeService.textColor,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Votre dossier spam est vide',
             style: TextStyle(
               color: _themeService.subtitleColor,
               fontSize: 14,
@@ -1688,6 +2883,16 @@ class _MailScreenState extends State<MailScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      // Bouton IA
+                      IconButton(
+                        onPressed: () => _showAIReplyDialog(_selectedEmail!),
+                        icon: Icon(
+                          Icons.auto_awesome,
+                          color: Colors.purple.shade400,
+                          size: 24,
+                        ),
+                        tooltip: 'Répondre avec IA',
                       ),
                     ],
                   ),
@@ -2066,7 +3271,16 @@ class _MailScreenState extends State<MailScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            ...attachments.map((attachment) => _buildAttachmentItem(messageId, attachment)),
+            SizedBox(
+              height: 110,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: attachments.length,
+                itemBuilder: (context, index) {
+                  return _buildAttachmentItem(messageId, attachments[index]);
+                },
+              ),
+            ),
           ],
         );
       },
@@ -2076,7 +3290,8 @@ class _MailScreenState extends State<MailScreen> {
   // Afficher un élément de pièce jointe
   Widget _buildAttachmentItem(String messageId, EmailAttachment attachment) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      width: 200,
+      margin: const EdgeInsets.only(right: 8),
       decoration: BoxDecoration(
         color: _themeService.isDarkMode ? Colors.grey[800] : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
@@ -2091,41 +3306,44 @@ class _MailScreenState extends State<MailScreen> {
           onTap: () => _downloadAttachment(messageId, attachment),
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  attachment.fileIcon,
-                  style: const TextStyle(fontSize: 24),
+                Row(
+                  children: [
+                    Text(
+                      attachment.fileIcon,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.download,
+                      color: _themeService.primaryColor,
+                      size: 20,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        attachment.name,
-                        style: TextStyle(
-                          color: _themeService.textColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        attachment.formattedSize,
-                        style: TextStyle(
-                          color: _themeService.subtitleColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 8),
+                Flexible(
+                  child: Text(
+                    attachment.name,
+                    style: TextStyle(
+                      color: _themeService.textColor,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Icon(
-                  Icons.download,
-                  color: _themeService.primaryColor,
-                  size: 20,
+                const SizedBox(height: 6),
+                Text(
+                  attachment.formattedSize,
+                  style: TextStyle(
+                    color: _themeService.subtitleColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -2295,8 +3513,14 @@ class _MailScreenState extends State<MailScreen> {
               _selectedEmail = null;
               _showEmailDetail = false;
             }
-          } else { // _currentTab == EmailTab.sent
+          } else if (_currentTab == EmailTab.sent) {
             _sentEmails.remove(email);
+            if (_selectedEmail == email) {
+              _selectedEmail = null;
+              _showEmailDetail = false;
+            }
+          } else { // _currentTab == EmailTab.spam
+            _spamEmails.remove(email);
             if (_selectedEmail == email) {
               _selectedEmail = null;
               _showEmailDetail = false;
@@ -2408,6 +3632,306 @@ class _MailScreenState extends State<MailScreen> {
         content: Text(message),
         backgroundColor: color,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // Afficher le dialogue IA pour générer une réponse
+  void _showAIReplyDialog(EmailMessage email) {
+    final TextEditingController specificationsController = TextEditingController();
+    bool isGenerating = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: _themeService.surfaceColor,
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.purple.shade400,
+                        Colors.blue.shade400,
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Répondre avec IA',
+                    style: TextStyle(
+                      color: _themeService.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Email de: ${email.senderName}',
+                  style: TextStyle(
+                    color: _themeService.subtitleColor,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sujet: ${email.subject}',
+                  style: TextStyle(
+                    color: _themeService.subtitleColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Spécifications pour la réponse',
+                  style: TextStyle(
+                    color: _themeService.textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  constraints: const BoxConstraints(minHeight: 120, maxHeight: 200),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _themeService.isDarkMode 
+                        ? Colors.grey[600]! 
+                        : Colors.grey[300]!,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: TextField(
+                    controller: specificationsController,
+                    maxLines: null,
+                    enabled: !isGenerating,
+                    decoration: InputDecoration(
+                      hintText: 'Ex: Répondre poliment que je suis intéressé et proposer un rendez-vous...',
+                      hintStyle: TextStyle(
+                        color: _themeService.subtitleColor,
+                        fontSize: 13,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                    style: TextStyle(
+                      color: _themeService.textColor,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                if (isGenerating) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.purple.shade400,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Génération en cours...',
+                        style: TextStyle(
+                          color: _themeService.subtitleColor,
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isGenerating ? null : () => Navigator.of(context).pop(),
+                child: Text(
+                  'Annuler',
+                  style: TextStyle(
+                    color: isGenerating 
+                      ? _themeService.subtitleColor.withOpacity(0.5)
+                      : _themeService.subtitleColor,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: isGenerating ? null : () async {
+                  if (specificationsController.text.trim().isEmpty) {
+                    _showSnackBar(
+                      'Veuillez entrer des spécifications',
+                      Colors.orange,
+                    );
+                    return;
+                  }
+
+                  setDialogState(() => isGenerating = true);
+
+                  try {
+                    final aiResponse = await _generateAIReply(
+                      email,
+                      specificationsController.text.trim(),
+                    );
+
+                    Navigator.of(context).pop();
+
+                    if (aiResponse != null) {
+                      // Ouvrir le dialogue de réponse avec le contenu généré par l'IA
+                      _replyToEmailWithAI(email, aiResponse);
+                    } else {
+                      _showSnackBar(
+                        'Erreur lors de la génération de la réponse',
+                        Colors.red,
+                      );
+                    }
+                  } catch (e) {
+                    Navigator.of(context).pop();
+                    _showSnackBar('Erreur: $e', Colors.red);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isGenerating 
+                    ? Colors.grey 
+                    : Colors.purple.shade400,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.auto_awesome, size: 18),
+                    const SizedBox(width: 8),
+                    Text(isGenerating ? 'Génération...' : 'Générer'),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // Générer une réponse avec l'IA Fireworks
+  Future<String?> _generateAIReply(EmailMessage email, String specifications) async {
+    try {
+      // Charger la clé API depuis .env
+      await dotenv.load(fileName: ".env");
+      final apiKey = dotenv.env['FIREWORK_APIKEY'];
+      
+      if (apiKey == null || apiKey.isEmpty) {
+        _showSnackBar('Clé API Fireworks non configurée', Colors.red);
+        return null;
+      }
+
+      // Construire le prompt
+      final prompt = '''Réponds à cet email :
+
+De: ${email.senderName} <${email.senderEmail}>
+Sujet: ${email.subject}
+Date: ${_formatFullDate(email.receivedDateTime)}
+
+Contenu de l'email:
+${_stripHtmlTags(email.body)}
+
+Spécifications pour la réponse:
+$specifications
+
+Génère uniquement le contenu de la réponse, sans formule de début ni de fin (pas de "Cher/Chère", pas de signature). Sois professionnel et concis.''';
+
+      // Appel API Fireworks
+      final response = await http.post(
+        Uri.parse('https://api.fireworks.ai/inference/v1/chat/completions'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'accounts/fireworks/models/deepseek-v3p1-terminus',
+          'max_tokens': 20480,
+          'top_p': 1,
+          'top_k': 40,
+          'presence_penalty': 0,
+          'frequency_penalty': 0,
+          'temperature': 0.6,
+          'messages': [
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ]
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'] as String;
+        return content.trim();
+      } else {
+        print('Erreur API Fireworks: ${response.statusCode} - ${response.body}');
+        _showSnackBar(
+          'Erreur API: ${response.statusCode}',
+          Colors.red,
+        );
+        return null;
+      }
+    } catch (e) {
+      print('Erreur lors de l\'appel à l\'IA: $e');
+      return null;
+    }
+  }
+
+  // Nettoyer les balises HTML d'un texte
+  String _stripHtmlTags(String htmlString) {
+    final exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
+    return htmlString.replaceAll(exp, '').replaceAll('&nbsp;', ' ').trim();
+  }
+
+  // Répondre à un email avec le contenu généré par l'IA
+  void _replyToEmailWithAI(EmailMessage email, String aiGeneratedBody) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _OutlookEmailDialogWithAI(
+        themeService: _themeService,
+        replyTo: email,
+        aiGeneratedBody: aiGeneratedBody,
+        outlookService: _outlookService,
+        onSend: (to, subject, body, attachments) async {
+          await _sendEmail(to, subject, body, attachments);
+          Navigator.of(context).pop();
+        },
       ),
     );
   }

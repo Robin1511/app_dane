@@ -280,7 +280,7 @@ class OutlookService {
       }
 
       final response = await http.get(
-        Uri.parse('$graphApiUrl/me/messages?\$top=$top&\$skip=$skip&\$orderby=receivedDateTime desc'),
+        Uri.parse('$graphApiUrl/me/mailFolders/inbox/messages?\$top=$top&\$skip=$skip&\$orderby=receivedDateTime desc'),
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Content-Type': 'application/json',
@@ -302,6 +302,7 @@ class OutlookService {
           isRead: msg['isRead'] ?? false,
           hasAttachments: msg['hasAttachments'] ?? false,
           importance: msg['importance'] ?? 'normal',
+          conversationId: msg['conversationId'],
         )).toList();
       }
     } catch (e) {
@@ -347,10 +348,57 @@ class OutlookService {
           isRead: true,
           hasAttachments: msg['hasAttachments'] ?? false,
           importance: msg['importance'] ?? 'normal',
+          conversationId: msg['conversationId'],
         )).toList();
       }
     } catch (e) {
       print('Erreur lors de la récupération des emails envoyés: $e');
+    }
+    return [];
+  }
+
+  // Obtenir les emails spam
+  Future<List<EmailMessage>> getSpamEmails({int top = 20, int skip = 0}) async {
+    if (!isLoggedIn) return [];
+
+    try {
+      // En mode démo, retourner des emails simulés
+      if (_demoMode) {
+        final demoSpamEmails = _getDemoSpamEmails();
+        // Simuler la pagination en mode démo
+        if (skip >= demoSpamEmails.length) return [];
+        final end = (skip + top).clamp(0, demoSpamEmails.length);
+        return demoSpamEmails.sublist(skip, end);
+      }
+
+      final response = await http.get(
+        Uri.parse('$graphApiUrl/me/mailFolders/JunkEmail/messages?\$top=$top&\$skip=$skip&\$orderby=receivedDateTime desc'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final messages = data['value'] as List;
+        
+        return messages.map((msg) => EmailMessage(
+          id: msg['id'],
+          subject: msg['subject'] ?? 'Sans objet',
+          sender: msg['from']?['emailAddress']?['name'] ?? 'Expéditeur inconnu',
+          senderEmail: msg['from']?['emailAddress']?['address'] ?? '',
+          body: msg['body']?['content'] ?? '',
+          bodyPreview: msg['bodyPreview'] ?? '',
+          receivedDateTime: DateTime.tryParse(msg['receivedDateTime'] ?? '') ?? DateTime.now(),
+          isRead: msg['isRead'] ?? false,
+          hasAttachments: msg['hasAttachments'] ?? false,
+          importance: msg['importance'] ?? 'normal',
+          conversationId: msg['conversationId'],
+        )).toList();
+      }
+    } catch (e) {
+      print('Erreur lors de la récupération des emails spam: $e');
     }
     return [];
   }
@@ -578,6 +626,7 @@ class OutlookService {
         isRead: false,
         hasAttachments: false,
         importance: 'normal',
+        conversationId: 'conv1',
       ),
       EmailMessage(
         id: '2',
@@ -590,6 +639,7 @@ class OutlookService {
         isRead: true,
         hasAttachments: true,
         importance: 'normal',
+        conversationId: 'conv2',
       ),
       EmailMessage(
         id: '3',
@@ -602,6 +652,7 @@ class OutlookService {
         isRead: true,
         hasAttachments: true,
         importance: 'normal',
+        conversationId: 'conv3',
       ),
       EmailMessage(
         id: '4',
@@ -614,6 +665,7 @@ class OutlookService {
         isRead: false,
         hasAttachments: false,
         importance: 'normal',
+        conversationId: 'conv4',
       ),
       EmailMessage(
         id: '5',
@@ -626,6 +678,7 @@ class OutlookService {
         isRead: false,
         hasAttachments: false,
         importance: 'normal',
+        conversationId: 'conv5',
       ),
     ];
   }
@@ -636,7 +689,7 @@ class OutlookService {
     return [
       EmailMessage(
         id: 'sent1',
-        subject: 'Reponse : Confirmation reunion demain',
+        subject: 'RE: Confirmation reunion demain',
         sender: 'Moi',
         senderEmail: 'moi@example.com',
         body: '<p>Bonjour Marie,<br><br>Parfait, je confirme ma presence a la reunion de demain a 14h.<br><br>J\'ai bien note l\'ordre du jour et je viens avec mes questions.<br><br>Cordialement,<br>Moi</p>',
@@ -645,6 +698,7 @@ class OutlookService {
         isRead: true,
         hasAttachments: false,
         importance: 'normal',
+        conversationId: 'conv2', // Même conversation que "Confirmation reunion demain"
       ),
       EmailMessage(
         id: 'sent2',
@@ -657,8 +711,104 @@ class OutlookService {
         isRead: true,
         hasAttachments: false,
         importance: 'normal',
+        conversationId: 'conv6',
       ),
     ];
+  }
+
+  // Emails spam de démonstration
+  List<EmailMessage> _getDemoSpamEmails() {
+    final now = DateTime.now();
+    return [
+      EmailMessage(
+        id: 'spam1',
+        subject: 'Vous avez gagne 1 million d\'euros !!!',
+        sender: 'Loterie Internationale',
+        senderEmail: 'noreply@fake-lottery.xyz',
+        body: '<p>FELICITATIONS !!! Vous etes le grand gagnant de notre loterie internationale. Cliquez ici pour reclamer vos gains maintenant !</p><p>Ne manquez pas cette opportunite unique !</p>',
+        bodyPreview: 'FELICITATIONS !!! Vous etes le grand gagnant de notre loterie internationale. Cliquez ici pour reclamer vos gains maintenant !',
+        receivedDateTime: now.subtract(const Duration(hours: 3)),
+        isRead: false,
+        hasAttachments: false,
+        importance: 'normal',
+        conversationId: 'spam_conv1',
+      ),
+      EmailMessage(
+        id: 'spam2',
+        subject: 'Offre exclusive : Produits miracle a -90%',
+        sender: 'SuperPromo',
+        senderEmail: 'promo@spam-deals.com',
+        body: '<p>Offre limitee ! Achetez maintenant nos produits miracle avec une reduction incroyable de 90%. Stock limite !</p>',
+        bodyPreview: 'Offre limitee ! Achetez maintenant nos produits miracle avec une reduction incroyable de 90%. Stock limite !',
+        receivedDateTime: now.subtract(const Duration(hours: 5)),
+        isRead: false,
+        hasAttachments: false,
+        importance: 'normal',
+        conversationId: 'spam_conv2',
+      ),
+      EmailMessage(
+        id: 'spam3',
+        subject: 'Urgent : Mise a jour de votre compte bancaire',
+        sender: 'Service Client',
+        senderEmail: 'support@fake-bank.net',
+        body: '<p>URGENT : Votre compte bancaire necessite une mise a jour immediate. Cliquez sur le lien ci-dessous pour confirmer vos informations.</p><p>Sans action de votre part, votre compte sera suspendu sous 24h.</p>',
+        bodyPreview: 'URGENT : Votre compte bancaire necessite une mise a jour immediate. Cliquez sur le lien ci-dessous pour confirmer vos informations.',
+        receivedDateTime: now.subtract(const Duration(days: 1)),
+        isRead: true,
+        hasAttachments: false,
+        importance: 'high',
+        conversationId: 'spam_conv3',
+      ),
+    ];
+  }
+
+  // Obtenir tous les emails d'une conversation (thread)
+  Future<List<EmailMessage>> getConversationMessages(String conversationId) async {
+    if (!isLoggedIn) return [];
+
+    try {
+      // En mode démo, retourner les emails avec le même conversationId
+      if (_demoMode) {
+        final allDemoEmails = [
+          ..._getDemoEmails(),
+          ..._getDemoSentEmails(),
+        ];
+        return allDemoEmails
+            .where((email) => email.conversationId == conversationId)
+            .toList()
+          ..sort((a, b) => a.receivedDateTime.compareTo(b.receivedDateTime));
+      }
+
+      final response = await http.get(
+        Uri.parse('$graphApiUrl/me/messages?\$filter=conversationId eq \'$conversationId\'&\$orderby=receivedDateTime asc'),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final messages = data['value'] as List;
+        
+        return messages.map((msg) => EmailMessage(
+          id: msg['id'],
+          subject: msg['subject'] ?? 'Sans objet',
+          sender: msg['from']?['emailAddress']?['name'] ?? 'Expéditeur inconnu',
+          senderEmail: msg['from']?['emailAddress']?['address'] ?? '',
+          body: msg['body']?['content'] ?? '',
+          bodyPreview: msg['bodyPreview'] ?? '',
+          receivedDateTime: DateTime.tryParse(msg['receivedDateTime'] ?? '') ?? DateTime.now(),
+          isRead: msg['isRead'] ?? false,
+          hasAttachments: msg['hasAttachments'] ?? false,
+          importance: msg['importance'] ?? 'normal',
+          conversationId: msg['conversationId'],
+        )).toList();
+      }
+    } catch (e) {
+      print('Erreur lors de la récupération de la conversation: $e');
+    }
+    return [];
   }
 
   // Obtenir les contacts de l'utilisateur
@@ -838,6 +988,7 @@ class EmailMessage {
   final bool isRead;
   final bool hasAttachments;
   final String importance;
+  final String? conversationId; // ID de conversation pour grouper les RE:
 
   EmailMessage({
     required this.id,
@@ -850,6 +1001,7 @@ class EmailMessage {
     required this.isRead,
     required this.hasAttachments,
     this.importance = 'normal',
+    this.conversationId,
   });
 
   // Getter pour compatibilité avec le nouveau code

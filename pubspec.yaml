@@ -25,6 +25,8 @@ dependencies:
   flutter_html: ^3.0.0
   webview_flutter: ^4.4.2
   device_calendar: ^4.0.1
+  flutter_svg: ^2.0.10
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
@@ -36,7 +38,16 @@ flutter:
   
   assets:
     - assets/images/
+    - assets/icons/
     - .env
     - assets/template.xlsx
     - assets/intro.riv
     - assets/intro2.riv
+    - assets/RiveAssets/
+    - assets/Backgrounds/
+    
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/Fonts/Poppins-Bold.ttf
+          weight: 700

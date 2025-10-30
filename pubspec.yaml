@@ -45,6 +45,9 @@ flutter:
     - assets/intro2.riv
     - assets/RiveAssets/
     - assets/Backgrounds/
+    - assets/logo_app_noir.png
+    - assets/logo_app_blanc.png
+    - assets/logo_app_bleu.png
     
   fonts:
     - family: Poppins

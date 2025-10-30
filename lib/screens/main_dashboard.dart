@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../widgets/dashboard_card.dart';
 import '../services/theme_service.dart';
@@ -5,6 +6,7 @@ import 'home_screen.dart';
 import 'calendar_screen.dart';
 import 'mail_screen.dart';
 import 'map_screen.dart';
+import 'login/login_screen.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -39,99 +41,145 @@ class _MainDashboardState extends State<MainDashboard> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: _themeService.isDarkMode ? const Color(0xFF2D2D44) : Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                borderRadius: BorderRadius.circular(2),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _themeService.isDarkMode 
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.black.withOpacity(0.10),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: _themeService.isDarkMode
+                      ? Colors.white.withOpacity(0.06)
+                      : Colors.white.withOpacity(0.24),
+                  width: 1,
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(_themeService.isDarkMode ? 0.35 : 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.architecture,
+                      color: Colors.white,
+                    ),
+                    title: Text(
+                      'Métrique',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _onCardTap('metrique');
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.map,
+                      color: Colors.white,
+                    ),
+                    title: Text(
+                      'Carte',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _onCardTap('map');
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.calendar_today,
+                      color: Colors.white,
+                    ),
+                    title: Text(
+                      'Planification',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _onCardTap('planning');
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.mail_outline,
+                      color: Colors.white,
+                    ),
+                    title: Text(
+                      'Mails',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _onCardTap('contacts');
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: Icon(
+                      Icons.logout,
+                      color: Colors.white,
+                    ),
+                    title: Text(
+                      'Déconnexion',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      _themeService.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                      color: Colors.white,
+                    ),
+                    title: Text(
+                      _themeService.isDarkMode ? 'Mode clair' : 'Mode sombre',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () async {
+                      await _themeService.toggleTheme();
+                      Navigator.pop(context);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
-            ListTile(
-              leading: Icon(
-                Icons.architecture,
-                color: _themeService.textColor,
-              ),
-              title: Text(
-                'Métrique',
-                style: TextStyle(color: _themeService.textColor),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _onCardTap('metrique');
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.map,
-                color: _themeService.textColor,
-              ),
-              title: Text(
-                'Carte',
-                style: TextStyle(color: _themeService.textColor),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _onCardTap('map');
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.calendar_today,
-                color: _themeService.textColor,
-              ),
-              title: Text(
-                'Planification',
-                style: TextStyle(color: _themeService.textColor),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _onCardTap('planning');
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.mail_outline,
-                color: _themeService.textColor,
-              ),
-              title: Text(
-                'Mails',
-                style: TextStyle(color: _themeService.textColor),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _onCardTap('contacts');
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: Icon(
-                _themeService.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                color: _themeService.textColor,
-              ),
-              title: Text(
-                _themeService.isDarkMode ? 'Mode clair' : 'Mode sombre',
-                style: TextStyle(color: _themeService.textColor),
-              ),
-              onTap: () async {
-                await _themeService.toggleTheme();
-                Navigator.pop(context);
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );
@@ -141,34 +189,57 @@ class _MainDashboardState extends State<MainDashboard> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: _themeService.isDarkMode ? const Color(0xFF2D2D44) : Colors.white,
+        backgroundColor: _themeService.isDarkMode 
+            ? const Color(0xFF000000) // noir profond
+            : const Color(0xFFFAF7F0), // crème
         title: Text(
           'Notifications',
-          style: TextStyle(color: _themeService.textColor),
+          style: TextStyle(
+            color: _themeService.isDarkMode ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.info, color: Colors.blue),
+              leading: Icon(
+                Icons.info,
+                color: _themeService.isDarkMode ? Colors.white : Colors.blue,
+              ),
               title: Text(
                 'Bienvenue dans votre dashboard !',
-                style: TextStyle(color: _themeService.textColor),
+                style: TextStyle(
+                  color: _themeService.isDarkMode ? Colors.white : Colors.black87,
+                ),
               ),
               subtitle: Text(
                 'Il y a 2 minutes',
-                style: TextStyle(color: _themeService.textColor.withOpacity(0.6)),
+                style: TextStyle(
+                  color: _themeService.isDarkMode 
+                      ? Colors.white70 
+                      : Colors.grey[600]!,
+                ),
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.update, color: Colors.green),
+              leading: Icon(
+                Icons.update,
+                color: _themeService.isDarkMode ? Colors.white : Colors.green,
+              ),
               title: Text(
                 'Mise à jour disponible',
-                style: TextStyle(color: _themeService.textColor),
+                style: TextStyle(
+                  color: _themeService.isDarkMode ? Colors.white : Colors.black87,
+                ),
               ),
               subtitle: Text(
                 'Il y a 1 heure',
-                style: TextStyle(color: _themeService.textColor.withOpacity(0.6)),
+                style: TextStyle(
+                  color: _themeService.isDarkMode 
+                      ? Colors.white70 
+                      : Colors.grey[600]!,
+                ),
               ),
             ),
           ],
@@ -178,7 +249,12 @@ class _MainDashboardState extends State<MainDashboard> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Fermer',
-              style: TextStyle(color: _themeService.secondaryColor),
+              style: TextStyle(
+                color: _themeService.isDarkMode 
+                    ? Colors.white 
+                    : _themeService.secondaryColor,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -269,7 +345,8 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _themeService.isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey[50],
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           "Dashboard",
@@ -278,7 +355,8 @@ class _MainDashboardState extends State<MainDashboard> {
                 color: _themeService.textColor,
               ),
         ),
-        backgroundColor: _themeService.isDarkMode ? const Color(0xFF1A1A2E) : Colors.grey[50],
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
         actions: [
@@ -286,24 +364,37 @@ class _MainDashboardState extends State<MainDashboard> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: GestureDetector(
               onTap: _showNotifications,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
+              child: ClipOval(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _themeService.isDarkMode 
+                          ? Colors.white.withOpacity(0.08)
+                          : Colors.black.withOpacity(0.10),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _themeService.isDarkMode
+                            ? Colors.white.withOpacity(0.06)
+                            : Colors.white.withOpacity(0.24),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(_themeService.isDarkMode ? 0.35 : 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.notifications_outlined,
-                  color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
-                  size: 22,
+                    child: Icon(
+                      Icons.notifications_outlined,
+                      color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
+                      size: 22,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -313,47 +404,65 @@ class _MainDashboardState extends State<MainDashboard> {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: GestureDetector(
             onTap: _showDrawer,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
+            child: ClipOval(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _themeService.isDarkMode 
+                        ? Colors.white.withOpacity(0.08)
+                        : Colors.black.withOpacity(0.10),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _themeService.isDarkMode
+                          ? Colors.white.withOpacity(0.06)
+                          : Colors.white.withOpacity(0.24),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(_themeService.isDarkMode ? 0.35 : 0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Icon(
-                Icons.menu_rounded,
-                color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
+                  child: Icon(
+                    Icons.menu_rounded,
+                    color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
+                    size: 22,
+                  ),
+                ),
               ),
             ),
           ),
         ),
       ),
       body: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            Text(
-              "Mes Applications",
-              style: TextStyle(
-                color: _themeService.textColor,
-                fontWeight: FontWeight.w700,
-                fontSize: 24,
-              ),
+        color: _themeService.isDarkMode
+            ? const Color(0xFF000000) // fond noir profond
+            : const Color(0xFFFAF7F0), // fond crème en light
+        child: SafeArea(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(15, 10, 15, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Mes Applications",
+                  style: TextStyle(
+                    color: _themeService.textColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 24,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(child: _buildGrid()),
+              ],
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: _buildGrid(),
-            ),
-          ],
+          ),
         ),
       ),
     );

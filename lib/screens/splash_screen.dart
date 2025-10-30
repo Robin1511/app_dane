@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 import 'dart:async';
-import 'main_dashboard.dart';
+import 'login/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -42,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen> {
           if (mounted) {
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => const MainDashboard(),
+                pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
                 transitionDuration: const Duration(milliseconds: 800),
                 transitionsBuilder: (context, animation, secondaryAnimation, child) {
                   return FadeTransition(
@@ -73,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen> {
     Timer(const Duration(seconds: 2), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const MainDashboard()),
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
       }
     });

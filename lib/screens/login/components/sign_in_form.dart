@@ -1,13 +1,16 @@
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:rive/rive.dart';
+import 'package:rive/rive.dart' as rive;
 import 'package:app_dane/screens/main_dashboard.dart';
 
 class SignInForm extends StatefulWidget {
   const SignInForm({
     super.key,
+    this.useLightColors = false,
   });
+
+  final bool useLightColors;
 
   @override
   State<SignInForm> createState() => _SignInFormState();
@@ -16,41 +19,37 @@ class SignInForm extends StatefulWidget {
 class _SignInFormState extends State<SignInForm> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool isShowLoading = false;
-  bool isShowConfetti = false;
-  late SMITrigger error;
-  late SMITrigger success;
-  late SMITrigger reset;
+  
+  late rive.SMITrigger error;
+  late rive.SMITrigger success;
+  late rive.SMITrigger reset;
+  
 
-  late SMITrigger confetti;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
-  void _onCheckRiveInit(Artboard artboard) {
-    StateMachineController? controller =
-        StateMachineController.fromArtboard(artboard, 'State Machine 1');
+  void _onCheckRiveInit(rive.Artboard artboard) {
+    rive.StateMachineController? controller =
+        rive.StateMachineController.fromArtboard(artboard, 'State Machine 1');
 
     artboard.addController(controller!);
-    error = controller.findInput<bool>('Error') as SMITrigger;
-    success = controller.findInput<bool>('Check') as SMITrigger;
-    reset = controller.findInput<bool>('Reset') as SMITrigger;
+    error = controller.findInput<bool>('Error') as rive.SMITrigger;
+    success = controller.findInput<bool>('Check') as rive.SMITrigger;
+    reset = controller.findInput<bool>('Reset') as rive.SMITrigger;
   }
 
-  void _onConfettiRiveInit(Artboard artboard) {
-    StateMachineController? controller =
-        StateMachineController.fromArtboard(artboard, "State Machine 1");
-    artboard.addController(controller!);
-
-    confetti = controller.findInput<bool>("Trigger explosion") as SMITrigger;
-  }
+  
 
   void singIn(BuildContext context) {
-    // confetti.fire();
     setState(() {
-      isShowConfetti = true;
       isShowLoading = true;
     });
     Future.delayed(
       const Duration(seconds: 1),
       () {
-        if (_formKey.currentState!.validate()) {
+        if (_formKey.currentState!.validate() &&
+            _emailController.text.trim().toLowerCase() == 'dane.debastos' &&
+            _passwordController.text == 'azer') {
           success.fire();
           Future.delayed(
             const Duration(seconds: 2),
@@ -58,18 +57,13 @@ class _SignInFormState extends State<SignInForm> {
               setState(() {
                 isShowLoading = false;
               });
-              confetti.fire();
-              // Navigate & hide confetti
-              Future.delayed(const Duration(seconds: 1), () {
-                // Navigator.pop(context);
-                if (!context.mounted) return;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const MainDashboard(),
-                  ),
-                );
-              });
+              if (!context.mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MainDashboard(),
+                ),
+              );
             },
           );
         } else {
@@ -89,138 +83,200 @@ class _SignInFormState extends State<SignInForm> {
   }
 
   @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bool light = widget.useLightColors;
     return Stack(
       children: [
-        Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Email",
-                style: TextStyle(
-                  color: Colors.black54,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(light ? 0.14 : 0.18),
+                    Colors.white.withOpacity(light ? 0.06 : 0.08),
+                  ],
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 16),
-                child: TextFormField(
-                  validator: (value) {
-                    if (value!.isEmpty) {
-                      return "";
-                    }
-                    return null;
-                  },
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: SvgPicture.asset("assets/icons/email.svg"),
-                    ),
+                border: Border.all(
+                  color: Colors.white.withOpacity(light ? 0.28 : 0.22),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: light ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.12),
+                    blurRadius: 24,
+                    offset: const Offset(0, 16),
                   ),
-                ),
+                ],
               ),
-              const Text(
-                "Password",
-                style: TextStyle(
-                  color: Colors.black54,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 16),
-                child: TextFormField(
-                  obscureText: true,
-                  validator: (value) {
-                    if (value!.isEmpty) {
-                      return "";
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: SvgPicture.asset("assets/icons/password.svg"),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    
+                    const SizedBox(height: 16),
+                    _GlassField(
+                      label: "Email",
+                      hint: "email@example.com",
+                      icon: CupertinoIcons.envelope,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) => (value == null || value.isEmpty) ? "Entrez votre email" : null,
+                      textInputAction: TextInputAction.next,
+                      light: light,
+                      controller: _emailController,
                     ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 24),
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    singIn(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF77D8E),
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        topRight: Radius.circular(25),
-                        bottomRight: Radius.circular(25),
-                        bottomLeft: Radius.circular(25),
+                    const SizedBox(height: 12),
+                    _GlassField(
+                      label: "Mot de passe",
+                      hint: "••••••••",
+                      icon: CupertinoIcons.lock,
+                      obscureText: true,
+                      validator: (value) => (value == null || value.isEmpty) ? "Entrez votre mot de passe" : null,
+                      onSubmitted: (_) => singIn(context),
+                      light: light,
+                      controller: _passwordController,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 56,
+                      child: AbsorbPointer(
+                        absorbing: isShowLoading,
+                        child: CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          borderRadius: BorderRadius.circular(28),
+                          color: const Color(0xFF007AFF),
+                          pressedOpacity: 1.0,
+                          onPressed: () => singIn(context),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (!isShowLoading)
+                                const Icon(CupertinoIcons.arrow_right, color: Colors.white)
+                              else
+                                SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: rive.RiveAnimation.asset(
+                                    'assets/RiveAssets/check.riv',
+                                    fit: BoxFit.contain,
+                                    onInit: _onCheckRiveInit,
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                "Continuer",
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  icon: const Icon(
-                    CupertinoIcons.arrow_right,
-                    color: Color(0xFFFE0037),
-                  ),
-                  label: const Text("Sign In"),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
-        isShowLoading
-            ? CustomPositioned(
-                child: RiveAnimation.asset(
-                  'assets/RiveAssets/check.riv',
-                  fit: BoxFit.cover,
-                  onInit: _onCheckRiveInit,
-                ),
-              )
-            : const SizedBox(),
-        isShowConfetti
-            ? CustomPositioned(
-                scale: 6,
-                child: RiveAnimation.asset(
-                  "assets/RiveAssets/confetti.riv",
-                  onInit: _onConfettiRiveInit,
-                  fit: BoxFit.cover,
-                ),
-              )
-            : const SizedBox(),
+        // L'animation de check/erreur est désormais ancrée au bouton.
       ],
     );
   }
 }
 
-class CustomPositioned extends StatelessWidget {
-  const CustomPositioned({super.key, this.scale = 1, required this.child});
+// Supprimé: CustomPositioned n'est plus utilisé
 
-  final double scale;
-  final Widget child;
+class _GlassField extends StatelessWidget {
+  const _GlassField({
+    required this.label,
+    required this.hint,
+    required this.icon,
+    this.obscureText = false,
+    this.keyboardType,
+    this.textInputAction,
+    this.onSubmitted,
+    this.validator,
+    this.light = false,
+    this.controller,
+  });
+
+  final String label;
+  final String hint;
+  final IconData icon;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final void Function(String)? onSubmitted;
+  final String? Function(String?)? validator;
+  final bool light;
+  final TextEditingController? controller;
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: Column(
-        children: [
-          const Spacer(),
-          SizedBox(
-            height: 100,
-            width: 100,
-            child: Transform.scale(
-              scale: scale,
-              child: child,
+    final baseBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(22),
+      borderSide: BorderSide(color: (light ? Colors.white : Colors.black).withOpacity(0.12), width: 1),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: light ? Colors.white.withOpacity(0.9) : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          validator: validator,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          onFieldSubmitted: onSubmitted,
+          controller: controller,
+          style: TextStyle(color: light ? Colors.white : Colors.black),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: light ? Colors.white.withOpacity(0.16) : Colors.white.withOpacity(0.55),
+            hintText: hint,
+            hintStyle: TextStyle(color: (light ? Colors.white : Colors.black).withOpacity(0.55)),
+            prefixIcon: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Icon(icon, color: light ? Colors.white : Colors.black),
+            ),
+            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            enabledBorder: baseBorder,
+            focusedBorder: baseBorder.copyWith(
+              borderSide: BorderSide(color: (light ? Colors.white : Colors.black), width: 1.2),
+            ),
+            errorBorder: baseBorder.copyWith(
+              borderSide: const BorderSide(color: Colors.redAccent),
+            ),
+            focusedErrorBorder: baseBorder.copyWith(
+              borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
             ),
           ),
-          const Spacer(flex: 2),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

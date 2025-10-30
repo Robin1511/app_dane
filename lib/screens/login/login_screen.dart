@@ -2,8 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart' hide Image;
-
-import '../animated_btn.dart';
 import 'components/sign_in_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,16 +12,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late RiveAnimationController _btnAnimationController;
-
   bool isShowSignInDialog = false;
 
   @override
   void initState() {
-    _btnAnimationController = OneShotAnimation(
-      "active",
-      autoplay: false,
-    );
     super.initState();
   }
 
@@ -64,63 +56,84 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const Spacer(),
-                    const SizedBox(
+                    SizedBox(
                       width: 260,
                       child: Column(
                         children: [
-                          Text(
-                            "Learn design & code",
-                            style: TextStyle(
-                              fontSize: 60,
-                              fontWeight: FontWeight.w700,
-                              fontFamily: "Poppins",
-                              height: 1.2,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            "Don’t skip design. Learn design and code, by building real apps with Flutter and Swift. Complete courses about the best tools.",
-                          ),
+                          Image.asset("assets/logo_app_noir.png"),
                         ],
                       ),
                     ),
                     const Spacer(flex: 2),
-                    AnimatedBtn(
-                      btnAnimationController: _btnAnimationController,
-                      press: () {
-                        _btnAnimationController.isActive = true;
-
-                        Future.delayed(
-                          const Duration(milliseconds: 800),
-                          () {
-                            setState(() {
-                              isShowSignInDialog = true;
-                            });
-                            if (!context.mounted) return;
-                            showCustomDialog(
-                              context,
-                              onValue: (_) {},
-                            );
-                            // showCustomDialog(
-                            //   context,
-                            //   onValue: (_) {
-                            //     setState(() {
-                            //       isShowSignInDialog = false;
-                            //     });
-                            //   },
-                            // );
-                          },
-                        );
-                      },
+                    const SizedBox(height: 72),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 24,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragUpdate: (details) {
+                if (details.delta.dy < -8 && !isShowSignInDialog) {
+                  setState(() {
+                    isShowSignInDialog = true;
+                  });
+                  if (!context.mounted) return;
+                  showCustomDialog(
+                    context,
+                    onValue: (_) {
+                      if (mounted) {
+                        setState(() {
+                          isShowSignInDialog = false;
+                        });
+                      }
+                    },
+                  );
+                }
+              },
+              onVerticalDragEnd: (details) {
+                if (details.primaryVelocity != null && details.primaryVelocity! < -300 && !isShowSignInDialog) {
+                  setState(() {
+                    isShowSignInDialog = true;
+                  });
+                  if (!context.mounted) return;
+                  showCustomDialog(
+                    context,
+                    onValue: (_) {
+                      if (mounted) {
+                        setState(() {
+                          isShowSignInDialog = false;
+                        });
+                      }
+                    },
+                  );
+                }
+              },
+              child: SizedBox(
+                height: 96,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_up,
+                      size: 36,
+                      color: Colors.black.withOpacity(0.9),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text(
-                          "Purchase includes access to 30+ courses, 240+ premium tutorials, 120+ hours of videos, source files and certificates."),
-                    )
+                    const SizedBox(height: 4),
+                    Text(
+                      'Swipe up',
+                      style: TextStyle(
+                        color: Colors.black.withOpacity(0.9),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),

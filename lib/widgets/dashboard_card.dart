@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../services/theme_service.dart';
 
 class DashboardCard extends StatefulWidget {
   final String title;
@@ -66,6 +68,20 @@ class _DashboardCardState extends State<DashboardCard>
 
   @override
   Widget build(BuildContext context) {
+    final themeService = ThemeService();
+    final isDark = themeService.isDarkMode;
+    // iOS 16/17 dark mode moderne: translucide avec teinte bleu-gris subtile
+    final Color glassFill = isDark
+        ? Colors.white.withOpacity(0.08) // transparent mais visible
+        : Colors.black.withOpacity(0.10); // plus foncé en clair (teinte grise)
+    final Color glassBorder = isDark
+        ? Colors.white.withOpacity(0.06) // bordure très subtile iOS
+        : Colors.white.withOpacity(0.14);
+    // En dark mode: tout en blanc pur pour texte/icônes - FORCER LE BLANC
+    final Color iconColor = isDark ? Colors.white : Colors.black87;
+    final Color titleColor = isDark ? Colors.white : Colors.black87;
+    final Color subtitleColor = isDark ? Colors.white : Colors.black.withOpacity(0.6);
+
     return GestureDetector(
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
@@ -75,72 +91,132 @@ class _DashboardCardState extends State<DashboardCard>
         builder: (context, child) {
           return Transform.scale(
             scale: _scaleAnimation.value,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomLeft,
-                  end: Alignment.topRight,
-                  colors: [
-                    widget.color[400]!,
-                    widget.color[300]!,
-                    widget.color[200]!,
-                  ],
-                  stops: const [0.4, 0.6, 1],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: widget.color.withOpacity(0.4),
-                    blurRadius: 15,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: widget.isSmall || widget.isWide
-                        ? Alignment.centerLeft
-                        : Alignment.center,
-                    child: Icon(
-                      widget.icon,
-                      size: widget.isSmall
-                          ? 50
-                          : widget.isWide
-                              ? 40
-                              : 80,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    widget.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    widget.subtitle,
-                    maxLines: widget.isWide ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: isDark
+                    ? Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white.withOpacity(0.15),
+                              Colors.white.withOpacity(0.15),
+                              Colors.white.withOpacity(0.15),
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(2.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: glassFill,
+                            borderRadius: BorderRadius.circular(18.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.35),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 10),
+                              Align(
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  widget.icon,
+                                  size: 80,
+                                  color: iconColor,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                widget.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: titleColor,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                widget.subtitle,
+                                maxLines: widget.isWide ? 1 : 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: subtitleColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: glassFill,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: glassBorder, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.center,
+                              child: Icon(
+                                widget.icon,
+                                size: 80,
+                                color: iconColor,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              widget.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: titleColor,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              widget.subtitle,
+                              maxLines: widget.isWide ? 1 : 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: subtitleColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                        ),
+                      ),
               ),
             ),
           );

@@ -1,5 +1,7 @@
+import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:rive/rive.dart';
 import '../widgets/dashboard_card.dart';
 import '../services/theme_service.dart';
 import 'home_screen.dart';
@@ -7,6 +9,8 @@ import 'calendar_screen.dart';
 import 'mail_screen.dart';
 import 'map_screen.dart';
 import 'login/login_screen.dart';
+import 'menu/menu_btn.dart';
+import 'menu/side_bar.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -15,19 +19,40 @@ class MainDashboard extends StatefulWidget {
   State<MainDashboard> createState() => _MainDashboardState();
 }
 
-class _MainDashboardState extends State<MainDashboard> {
+class _MainDashboardState extends State<MainDashboard>
+    with SingleTickerProviderStateMixin {
   final ThemeService _themeService = ThemeService();
+  bool isSideBarOpen = false;
+  SMIBool? _menuBtnInput;
+
+  late AnimationController _animationController;
+  late Animation<double> scalAnimation;
+  late Animation<double> animation;
 
   @override
   void initState() {
     super.initState();
     // Écouter les changements de thème
     _themeService.addListener(_onThemeChanged);
+    
+    // Initialiser les animations
+    _animationController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 200))
+      ..addListener(
+        () {
+          setState(() {});
+        },
+      );
+    scalAnimation = Tween<double>(begin: 1, end: 0.8).animate(CurvedAnimation(
+        parent: _animationController, curve: Curves.fastOutSlowIn));
+    animation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
+        parent: _animationController, curve: Curves.fastOutSlowIn));
   }
 
   @override
   void dispose() {
     _themeService.removeListener(_onThemeChanged);
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -37,155 +62,36 @@ class _MainDashboardState extends State<MainDashboard> {
     }
   }
 
-  void _showDrawer() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: _themeService.isDarkMode 
-                  ? Colors.white.withOpacity(0.08)
-                  : Colors.black.withOpacity(0.10),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-              border: Border(
-                top: BorderSide(
-                  color: _themeService.isDarkMode
-                      ? Colors.white.withOpacity(0.06)
-                      : Colors.white.withOpacity(0.24),
-                  width: 1,
-                ),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(_themeService.isDarkMode ? 0.35 : 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[400],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.architecture,
-                      color: Colors.white,
-                    ),
-                    title: Text(
-                      'Métrique',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onCardTap('metrique');
-                    },
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.map,
-                      color: Colors.white,
-                    ),
-                    title: Text(
-                      'Carte',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onCardTap('map');
-                    },
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.calendar_today,
-                      color: Colors.white,
-                    ),
-                    title: Text(
-                      'Planification',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onCardTap('planning');
-                    },
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.mail_outline,
-                      color: Colors.white,
-                    ),
-                    title: Text(
-                      'Mails',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _onCardTap('contacts');
-                    },
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: Icon(
-                      Icons.logout,
-                      color: Colors.white,
-                    ),
-                    title: Text(
-                      'Déconnexion',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      _themeService.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                      color: Colors.white,
-                    ),
-                    title: Text(
-                      _themeService.isDarkMode ? 'Mode clair' : 'Mode sombre',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () async {
-                      await _themeService.toggleTheme();
-                      Navigator.pop(context);
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+  void _onMenuBtnInit(Artboard artboard) {
+    final controller = StateMachineController.fromArtboard(
+        artboard, "State Machine");
+    
+    if (controller != null) {
+      artboard.addController(controller);
+      _menuBtnInput = controller.findInput<bool>("isOpen") as SMIBool?;
+      if (_menuBtnInput != null) {
+        _menuBtnInput!.value = true;
+      }
+    }
   }
 
-  void _showNotifications() {
+  void _toggleMenu() {
+    if (_menuBtnInput != null) {
+      _menuBtnInput!.value = !_menuBtnInput!.value;
+    }
+
+    if (_animationController.value == 0) {
+      _animationController.forward();
+    } else {
+      _animationController.reverse();
+    }
+
+    setState(() {
+      isSideBarOpen = !isSideBarOpen;
+    });
+  }
+
+  void _handleNotificationTap() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -259,6 +165,17 @@ class _MainDashboardState extends State<MainDashboard> {
           ),
         ],
       ),
+    );
+  }
+
+  void _handleThemeToggle() async {
+    await _themeService.toggleTheme();
+  }
+
+  void _handleLogout() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 
@@ -345,125 +262,122 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(
-          "Dashboard",
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: _themeService.textColor,
-              ),
-        ),
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: GestureDetector(
-              onTap: _showNotifications,
-              child: ClipOval(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _themeService.isDarkMode 
-                          ? Colors.white.withOpacity(0.08)
-                          : Colors.black.withOpacity(0.10),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _themeService.isDarkMode
-                            ? Colors.white.withOpacity(0.06)
-                            : Colors.white.withOpacity(0.24),
-                        width: 1,
+      extendBody: true,
+      resizeToAvoidBottomInset: false,
+      backgroundColor: _themeService.isDarkMode
+          ? const Color(0xFF000000)
+          : const Color(0xFFFAF7F0),
+      body: Stack(
+        children: [
+          // Fond qui s'étend pour englober le contenu
+          AnimatedPositioned(
+            width: isSideBarOpen ? MediaQuery.of(context).size.width : 0,
+            height: MediaQuery.of(context).size.height,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.fastOutSlowIn,
+            left: 0,
+            top: 0,
+            child: Container(
+              color: const Color(0xFF17203A),
+            ),
+          ),
+          // SideBar avec coins arrondis à droite
+          AnimatedPositioned(
+            width: 288,
+            height: MediaQuery.of(context).size.height,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.fastOutSlowIn,
+            left: isSideBarOpen ? 0 : -288,
+            top: 0,
+            child: SideBar(
+              onMenuTap: (cardType) {
+                _toggleMenu(); // Fermer le menu après navigation
+                _onCardTap(cardType);
+              },
+              onThemeToggle: () {
+                _toggleMenu(); // Fermer le menu après toggle
+                _handleThemeToggle();
+              },
+              onNotificationTap: () {
+                _toggleMenu(); // Fermer le menu après ouverture notifications
+                _handleNotificationTap();
+              },
+              onLogout: () {
+                _handleLogout();
+              },
+            ),
+          ),
+          Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateY(1 * animation.value - 30 * (animation.value) * pi / 180),
+            child: Transform.translate(
+              offset: Offset(animation.value * 265, 0),
+              child: Transform.scale(
+                scale: scalAnimation.value,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(24),
+                  ),
+                  child: Scaffold(
+                    extendBodyBehindAppBar: true,
+                    backgroundColor: Colors.transparent,
+                    appBar: AppBar(
+                      automaticallyImplyLeading: false,
+                      title: Text(
+                        "Dashboard",
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: _themeService.textColor,
+                            ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(_themeService.isDarkMode ? 0.35 : 0.12),
-                          blurRadius: 16,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      backgroundColor: Colors.transparent,
+                      surfaceTintColor: Colors.transparent,
+                      elevation: 0,
+                      centerTitle: false,
                     ),
-                    child: Icon(
-                      Icons.notifications_outlined,
-                      color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
-                      size: 22,
+                    body: Container(
+                      color: _themeService.isDarkMode
+                          ? const Color(0xFF000000) // fond noir profond
+                          : const Color(0xFFFAF7F0), // fond crème en light
+                      child: SafeArea(
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(15, 10, 15, 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Mes Applications",
+                                style: TextStyle(
+                                  color: _themeService.textColor,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 24,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Expanded(child: _buildGrid()),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
+            ),
+          ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.fastOutSlowIn,
+            left: isSideBarOpen ? 220 : 0,
+            top: 16,
+            child: MenuBtn(
+              press: _toggleMenu,
+              riveOnInit: _onMenuBtnInit,
             ),
           ),
         ],
-        leading: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: GestureDetector(
-            onTap: _showDrawer,
-            child: ClipOval(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _themeService.isDarkMode 
-                        ? Colors.white.withOpacity(0.08)
-                        : Colors.black.withOpacity(0.10),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _themeService.isDarkMode
-                          ? Colors.white.withOpacity(0.06)
-                          : Colors.white.withOpacity(0.24),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(_themeService.isDarkMode ? 0.35 : 0.12),
-                        blurRadius: 16,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.menu_rounded,
-                    color: _themeService.isDarkMode ? Colors.white : Colors.blueGrey,
-                    size: 22,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: Container(
-        color: _themeService.isDarkMode
-            ? const Color(0xFF000000) // fond noir profond
-            : const Color(0xFFFAF7F0), // fond crème en light
-        child: SafeArea(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(15, 10, 15, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Mes Applications",
-                  style: TextStyle(
-                    color: _themeService.textColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 24,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(child: _buildGrid()),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart' as rive;
-import 'package:app_dane/screens/main_dashboard.dart';
+import 'package:app_dane/screens/entry_point.dart';
 
 class SignInForm extends StatefulWidget {
   const SignInForm({
@@ -61,7 +61,7 @@ class _SignInFormState extends State<SignInForm> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const MainDashboard(),
+                  builder: (context) => const EntryPoint(),
                 ),
               );
             },

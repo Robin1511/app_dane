@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 import 'dart:async';
 import 'login/login_screen.dart';
+import 'entry_point.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

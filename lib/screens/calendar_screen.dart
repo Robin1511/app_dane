@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/settings_button.dart';
 import '../services/theme_service.dart';
-import 'main_dashboard.dart';
+import 'entry_point.dart';
 import 'package:device_calendar/device_calendar.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -217,7 +217,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
               onPressed: () {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const MainDashboard()),
+                  MaterialPageRoute(builder: (context) => const EntryPoint()),
                   (Route<dynamic> route) => false,
                 );
               },

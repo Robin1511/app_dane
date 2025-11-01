@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../services/theme_service.dart';
-import 'main_dashboard.dart';
+import 'entry_point.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 class MapScreen extends StatefulWidget {
@@ -100,7 +100,7 @@ class _MapScreenState extends State<MapScreen> {
               GestureDetector(
                 onTap: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => const MainDashboard()),
+                    MaterialPageRoute(builder: (context) => const EntryPoint()),
                   );
                 },
                 child: Container(
@@ -159,7 +159,7 @@ class _MapScreenState extends State<MapScreen> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => const MainDashboard()),
+                    MaterialPageRoute(builder: (context) => const EntryPoint()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -189,7 +189,7 @@ class _MapScreenState extends State<MapScreen> {
             GestureDetector(
               onTap: () {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const MainDashboard()),
+                  MaterialPageRoute(builder: (context) => const EntryPoint()),
                   (Route<dynamic> route) => false,
                 );
               },

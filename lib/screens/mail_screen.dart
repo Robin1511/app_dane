@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../services/theme_service.dart';
 import '../services/outlook_service.dart';
-import 'main_dashboard.dart';
+import 'entry_point.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1960,7 +1960,7 @@ class _MailScreenState extends State<MailScreen> {
           GestureDetector(
             onTap: () {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const MainDashboard()),
+                MaterialPageRoute(builder: (context) => const EntryPoint()),
                 (Route<dynamic> route) => false,
               );
             },
@@ -2996,7 +2996,7 @@ class _MailScreenState extends State<MailScreen> {
                     onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => const MainDashboard()),
+                        MaterialPageRoute(builder: (context) => const EntryPoint()),
                         (Route<dynamic> route) => false,
                       );
                     },

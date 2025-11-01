@@ -3,7 +3,7 @@ import '../widgets/settings_button.dart';
 import '../widgets/address_field.dart';
 import '../services/theme_service.dart';
 import 'summary_screen.dart';
-import 'main_dashboard.dart';
+import 'entry_point.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -804,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     onTap: () {
                       Navigator.of(context).pop(); // Fermer la sidebar
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => const MainDashboard()),
+                        MaterialPageRoute(builder: (context) => const EntryPoint()),
                         (Route<dynamic> route) => false,
                       );
                     },
@@ -941,11 +941,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         title: Row(
           children: [
             GestureDetector(
-              onTap: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const MainDashboard()),
-                  (Route<dynamic> route) => false,
-                );
+            onTap: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const EntryPoint()),
+                (Route<dynamic> route) => false,
+              );
               },
               child: Container(
                 padding: const EdgeInsets.all(8),

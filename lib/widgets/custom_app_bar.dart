@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/theme_service.dart';
-import '../screens/main_dashboard.dart';
+import '../screens/entry_point.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -88,7 +88,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             onPressed: () {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const MainDashboard()),
+                MaterialPageRoute(builder: (context) => const EntryPoint()),
                 (Route<dynamic> route) => false,
               );
             },

@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 import 'home_screen.dart';
-import 'calendar_screen.dart';
+import 'photo_screen.dart';
 import 'mail_screen.dart';
 import 'map_screen.dart';
 import 'login/login_screen.dart';
@@ -30,6 +30,7 @@ class _EntryPointState extends State<EntryPoint>
   Menu selectedSideMenu = sidebarMenus.first;
 
   SMIBool? isMenuOpenInput;
+  final ThemeService _themeService = ThemeService();
 
   void updateSelectedBtmNav(Menu menu) {
     if (selectedBottonNav != menu) {
@@ -56,13 +57,22 @@ class _EntryPointState extends State<EntryPoint>
         parent: _animationController, curve: Curves.fastOutSlowIn));
     animation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
         parent: _animationController, curve: Curves.fastOutSlowIn));
+    
+    _themeService.addListener(_onThemeChanged);
     super.initState();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _themeService.removeListener(_onThemeChanged);
     super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _toggleMenu() {
@@ -98,7 +108,7 @@ class _EntryPointState extends State<EntryPoint>
     } else if (menuType == 'planning') {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CalendarScreen()),
+        MaterialPageRoute(builder: (context) => const PhotoScreen()),
       );
     } else if (menuType == 'contacts') {
       Navigator.push(
@@ -203,10 +213,14 @@ class _EntryPointState extends State<EntryPoint>
 
   @override
   Widget build(BuildContext context) {
+    final ThemeService themeService = ThemeService();
+    
     return Scaffold(
       extendBody: true,
       resizeToAvoidBottomInset: false,
-      backgroundColor: Color(0xFF17203A),
+      backgroundColor: themeService.isDarkMode
+          ? const Color(0xFF000000) // Noir profond comme main_dashboard
+          : const Color(0xFFFAF7F0), // Crème comme main_dashboard
       body: Stack(
         children: [
           AnimatedPositioned(
@@ -242,27 +256,28 @@ class _EntryPointState extends State<EntryPoint>
               ),
             ),
           ),
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.fastOutSlowIn,
-            left: isSideBarOpen ? 220 : 0,
-            top: 16,
-            child: MenuBtn(
-              press: _toggleMenu,
-              riveOnInit: (artboard) {
-                final controller = StateMachineController.fromArtboard(
-                    artboard, "State Machine");
-
-                if (controller != null) {
-                  artboard.addController(controller);
-                  isMenuOpenInput = controller.findInput<bool>("isOpen") as SMIBool?;
-                  if (isMenuOpenInput != null) {
-                    isMenuOpenInput!.value = true;
-                  }
-                }
-              },
-            ),
-          ),
+          // Menu désactivé temporairement
+          // AnimatedPositioned(
+          //   duration: const Duration(milliseconds: 200),
+          //   curve: Curves.fastOutSlowIn,
+          //   left: isSideBarOpen ? 220 : 0,
+          //   top: 16,
+          //   child: MenuBtn(
+          //     press: _toggleMenu,
+          //     riveOnInit: (artboard) {
+          //       final controller = StateMachineController.fromArtboard(
+          //           artboard, "State Machine");
+          //
+          //       if (controller != null) {
+          //         artboard.addController(controller);
+          //         isMenuOpenInput = controller.findInput<bool>("isOpen") as SMIBool?;
+          //         if (isMenuOpenInput != null) {
+          //           isMenuOpenInput!.value = true;
+          //         }
+          //       }
+          //     },
+          //   ),
+          // ),
         ],
       ),
     );

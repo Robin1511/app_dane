@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 import 'menu.dart';
 import 'rive_utils.dart';
@@ -85,19 +86,48 @@ class _SideBarState extends State<SideBar> {
       return menu;
     }).toList();
 
-    return Container(
-      width: 288,
-      height: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFF17203A),
-        borderRadius: BorderRadius.all(
-          Radius.circular(30),
-        ),
-      ),
-      child: SafeArea(
-        child: DefaultTextStyle(
-          style: const TextStyle(color: Colors.white),
-          child: Column(
+    return ClipRRect(
+      borderRadius: const BorderRadius.all(Radius.circular(30)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+        child: Container(
+          width: 288,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: _themeService.isDarkMode
+                  ? [
+                      const Color(0xFF1a1a1a).withOpacity(0.7),
+                      const Color(0xFF2d2d2d).withOpacity(0.5),
+                    ]
+                  : [
+                      const Color(0xFFffffff).withOpacity(0.7),
+                      const Color(0xFFf5f5f5).withOpacity(0.5),
+                    ],
+            ),
+            borderRadius: const BorderRadius.all(Radius.circular(30)),
+            border: Border.all(
+              width: 1.5,
+              color: _themeService.isDarkMode
+                  ? Colors.white.withOpacity(0.2)
+                  : Colors.white.withOpacity(0.5),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 30,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: DefaultTextStyle(
+              style: TextStyle(
+                color: _themeService.isDarkMode ? Colors.white : Colors.black87,
+              ),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const InfoCard(
@@ -111,7 +141,13 @@ class _SideBarState extends State<SideBar> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium!
-                      .copyWith(color: Colors.white70),
+                      .copyWith(
+                        color: _themeService.isDarkMode
+                            ? Colors.white70
+                            : Colors.black54,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
+                      ),
                 ),
               ),
               ...sidebarMenus.map((menu) => SideMenu(
@@ -130,7 +166,13 @@ class _SideBarState extends State<SideBar> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium!
-                      .copyWith(color: Colors.white70),
+                      .copyWith(
+                        color: _themeService.isDarkMode
+                            ? Colors.white70
+                            : Colors.black54,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
+                      ),
                 ),
               ),
               ...modifiedSidebarMenus2.map((menu) => SideMenu(
@@ -142,10 +184,12 @@ class _SideBarState extends State<SideBar> {
                           stateMachineName: menu.rive.stateMachineName);
                     },
                   )),
-            ],
+              ],
+            ),
           ),
         ),
       ),
+    ),
     );
   }
 }

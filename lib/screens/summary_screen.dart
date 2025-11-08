@@ -1,8 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../widgets/settings_button.dart';
 import '../services/excel_export_service.dart';
 import 'entry_point.dart';
-import '../services/theme_service.dart'; // Ajouter l'import pour ThemeService
+import '../services/theme_service.dart';
 
 class TableItem {
   String descriptif;
@@ -235,75 +236,314 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
   }
 
+  // Vérifier s'il y a des données non sauvegardées
+  bool _hasUnsavedData() {
+    return _mainTitles.isNotEmpty;
+  }
+
+  // Gérer le bouton de retour avec confirmation
+  void _handleBackButton() {
+    if (_hasUnsavedData()) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: _isDarkMode
+                        ? [
+                            const Color(0xFF2A2A2A).withOpacity(0.9),
+                            const Color(0xFF1A1A1A).withOpacity(0.8),
+                          ]
+                        : [
+                            const Color(0xFFFFFFFF).withOpacity(0.9),
+                            const Color(0xFFF5F5F5).withOpacity(0.8),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    width: 1.5,
+                    color: _isDarkMode
+                        ? Colors.white.withOpacity(0.2)
+                        : Colors.black.withOpacity(0.1),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            'Données non sauvegardées',
+                            style: TextStyle(
+                              color: _isDarkMode ? Colors.white : Colors.black87,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Vous avez des données non sauvegardées. Êtes-vous sûr de vouloir quitter ?',
+                      style: TextStyle(
+                        color: _isDarkMode ? Colors.white70 : Colors.black87,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              backgroundColor: _isDarkMode
+                                  ? Colors.white.withOpacity(0.1)
+                                  : Colors.black.withOpacity(0.05),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'Annuler',
+                              style: TextStyle(
+                                color: _isDarkMode ? Colors.white : Colors.black87,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.pop(context); // Fermer la boîte de dialogue
+                              Navigator.of(context).pop(); // Quitter la page
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              backgroundColor: Colors.orange,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Quitter',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Pas de données, quitter directement
+      Navigator.of(context).pop();
+    }
+  }
+
   void _addMainTitle() {
     final TextEditingController controller = TextEditingController();
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+            child: Container(
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: _isDarkMode 
-                    ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                    : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: _isDarkMode
+                      ? [
+                          const Color(0xFF2A2A2A).withOpacity(0.9),
+                          const Color(0xFF1A1A1A).withOpacity(0.8),
+                        ]
+                      : [
+                          const Color(0xFFFFFFFF).withOpacity(0.9),
+                          const Color(0xFFF5F5F5).withOpacity(0.8),
+                        ],
                 ),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  width: 1.5,
+                  color: _isDarkMode
+                      ? Colors.white.withOpacity(0.2)
+                      : Colors.black.withOpacity(0.1),
+                ),
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Nouveau titre',
-              style: TextStyle(
-                color: _isDarkMode ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4ECDC4).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Color(0xFF4ECDC4),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        'Nouveau titre',
+                        style: TextStyle(
+                          color: _isDarkMode ? Colors.white : Colors.black87,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _isDarkMode
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _isDarkMode
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.black.withOpacity(0.1),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: TextField(
+                      controller: controller,
+                      style: TextStyle(
+                        color: _isDarkMode ? Colors.white : Colors.black87,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Nom du titre',
+                        hintStyle: TextStyle(
+                          color: _isDarkMode ? Colors.white60 : Colors.black45,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        filled: false,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              controller.dispose();
+                            });
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: _isDarkMode
+                                ? Colors.white.withOpacity(0.1)
+                                : Colors.black.withOpacity(0.05),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Annuler',
+                            style: TextStyle(
+                              color: _isDarkMode ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            if (controller.text.trim().isNotEmpty) {
+                              _safeSetState(() {
+                                _mainTitles.add(MainTitle(name: controller.text.trim()));
+                              });
+                              Navigator.pop(context);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                controller.dispose();
+                              });
+                            }
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: const Color(0xFF4ECDC4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Ajouter',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
-          decoration: InputDecoration(
-            labelText: 'Nom du titre',
-            labelStyle: TextStyle(
-              color: _isDarkMode ? Colors.white70 : const Color(0xFF666666),
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Annuler',
-              style: TextStyle(color: _isDarkMode ? Colors.white70 : Colors.grey[600]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                _safeSetState(() {
-                  _mainTitles.add(MainTitle(name: controller.text.trim()));
-                });
-                Navigator.pop(context);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Ajouter', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -313,52 +553,167 @@ class _SummaryScreenState extends State<SummaryScreen> {
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Nouveau sous-titre',
-          style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
-        ),
-        content: TextField(
-          controller: controller,
-          style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
-          decoration: InputDecoration(
-            labelText: 'Nom du sous-titre',
-            labelStyle: TextStyle(
-              color: _isDarkMode ? Colors.white70 : const Color(0xFF666666),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: _isDarkMode
+                      ? [
+                          const Color(0xFF2A2A2A).withOpacity(0.9),
+                          const Color(0xFF1A1A1A).withOpacity(0.8),
+                        ]
+                      : [
+                          const Color(0xFFFFFFFF).withOpacity(0.9),
+                          const Color(0xFFF5F5F5).withOpacity(0.8),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  width: 1.5,
+                  color: _isDarkMode
+                      ? Colors.white.withOpacity(0.2)
+                      : Colors.black.withOpacity(0.1),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4ECDC4).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.subdirectory_arrow_right,
+                          color: Color(0xFF4ECDC4),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        'Nouveau sous-titre',
+                        style: TextStyle(
+                          color: _isDarkMode ? Colors.white : Colors.black87,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _isDarkMode
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _isDarkMode
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.black.withOpacity(0.1),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: TextField(
+                      controller: controller,
+                      style: TextStyle(
+                        color: _isDarkMode ? Colors.white : Colors.black87,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Nom du sous-titre',
+                        hintStyle: TextStyle(
+                          color: _isDarkMode ? Colors.white60 : Colors.black45,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        filled: false,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              controller.dispose();
+                            });
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: _isDarkMode
+                                ? Colors.white.withOpacity(0.1)
+                                : Colors.black.withOpacity(0.05),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Annuler',
+                            style: TextStyle(
+                              color: _isDarkMode ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            if (controller.text.trim().isNotEmpty) {
+                              _safeSetState(() {
+                                _mainTitles[mainIndex].subTitles.add(
+                                  SubTitle(name: controller.text.trim()),
+                                );
+                              });
+                              Navigator.pop(context);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                controller.dispose();
+                              });
+                            }
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: const Color(0xFF4ECDC4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Ajouter',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Annuler',
-              style: TextStyle(color: _isDarkMode ? Colors.white70 : Colors.grey[600]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                _safeSetState(() {
-                  _mainTitles[mainIndex].subTitles.add(
-                    SubTitle(name: controller.text.trim()),
-                  );
-                });
-                Navigator.pop(context);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Ajouter', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -391,8 +746,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: _isDarkMode 
-                        ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                        : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
+                        ? [const Color(0xFF4ECDC4), const Color(0xFF45B8AC)]
+                        : [const Color(0xFF4ECDC4), const Color(0xFF5FA8D3)],
                     ),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(20),
@@ -450,7 +805,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                                  backgroundColor: const Color(0xFF4ECDC4),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   padding: const EdgeInsets.symmetric(vertical: 15),
                                 ),
@@ -466,7 +821,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isDarkMode ? const Color(0xFFFF6B35) : const Color(0xFFFF8E53),
+                                  backgroundColor: const Color(0xFF4ECDC4),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   padding: const EdgeInsets.symmetric(vertical: 15),
                                 ),
@@ -547,13 +902,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: workType == 'Cage d\'escalier'
-                        ? (_isDarkMode 
-                          ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                          : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)])
-                        : (_isDarkMode 
-                          ? [const Color(0xFFFF6B35), const Color(0xFFFF8E53)]
-                          : [const Color(0xFFFF6B35), const Color(0xFFFF8E53)]),
+                      colors: _isDarkMode 
+                        ? [const Color(0xFF4ECDC4), const Color(0xFF45B8AC)]
+                        : [const Color(0xFF4ECDC4), const Color(0xFF5FA8D3)],
                     ),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(20),
@@ -630,9 +981,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                       }
                                     });
                                   },
-                                  activeColor: workType == 'Cage d\'escalier'
-                                    ? (_isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA))
-                                    : (_isDarkMode ? const Color(0xFFFF6B35) : const Color(0xFFFF6B35)),
+                                  activeColor: const Color(0xFF4ECDC4),
                                   checkColor: Colors.white,
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   shape: RoundedRectangleBorder(
@@ -674,14 +1023,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     }
                                   : null,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: workType == 'Cage d\'escalier'
-                                    ? (_isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA))
-                                    : (_isDarkMode ? const Color(0xFFFF6B35) : const Color(0xFFFF6B35)),
+                                  backgroundColor: const Color(0xFF4ECDC4),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   padding: const EdgeInsets.symmetric(vertical: 15),
                                 ),
                                 child: Text(
-                                  'Créer titre principal avec ${selectedTitles.length} sous-titre${selectedTitles.length > 1 ? 's' : ''}',
+                                  'Creer',
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                 ),
                               ),
@@ -716,7 +1063,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Titre principal "$category" créé avec ${titles.length} sous-titre${titles.length > 1 ? 's' : ''}'),
-        backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+        backgroundColor: const Color(0xFF4ECDC4),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -755,8 +1102,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: _isDarkMode 
-                        ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                        : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
+                        ? [const Color(0xFF4ECDC4), const Color(0xFF45B8AC)]
+                        : [const Color(0xFF4ECDC4), const Color(0xFF5FA8D3)],
                     ),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(20),
@@ -852,8 +1199,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 const SizedBox(height: 8),
                                 Text(
                                   '${_getAdjustedTotal(selectedToKey!).toStringAsFixed(2)} - ${_getAdjustedTotal(selectedFromKey!).toStringAsFixed(2)} = ${(_getAdjustedTotal(selectedToKey!) - _getAdjustedTotal(selectedFromKey!)).toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                                  style: const TextStyle(
+                                    color: Color(0xFF4ECDC4),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
@@ -909,7 +1256,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     }
                                   : null,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                                  backgroundColor: const Color(0xFF4ECDC4),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   padding: const EdgeInsets.symmetric(vertical: 15),
                                 ),
@@ -1565,12 +1912,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 margin: const EdgeInsets.symmetric(vertical: 2),
                 decoration: BoxDecoration(
                   color: item.unite == unit
-                    ? (_isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA)).withOpacity(0.1)
+                    ? const Color(0xFF4ECDC4).withOpacity(0.1)
                     : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: item.unite == unit
-                      ? (_isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA))
+                      ? const Color(0xFF4ECDC4)
                       : Colors.transparent,
                   ),
                 ),
@@ -1578,7 +1925,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   unit,
                   style: TextStyle(
                     color: item.unite == unit
-                      ? (_isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA))
+                      ? const Color(0xFF4ECDC4)
                       : (_isDarkMode ? Colors.white : Colors.black),
                     fontWeight: item.unite == unit ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -1594,7 +1941,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
   @override
   Widget build(BuildContext context) {
     // Couleur de fond par défaut pour éviter le flash
-    final backgroundColor = _isDarkMode ? const Color(0xFF1A1A2E) : const Color(0xFFF5F7FA);
+    final backgroundColor = _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0);
     
     return Container(
       color: backgroundColor,
@@ -1605,96 +1952,149 @@ class _SummaryScreenState extends State<SummaryScreen> {
           key: _scaffoldKey,
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: _isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
+            backgroundColor: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
             elevation: 0,
-            leading: IconButton(
-              icon: Icon(
-                Icons.arrow_back,
-                color: _isDarkMode ? Colors.white : Colors.black,
+            leading: GestureDetector(
+              onTap: _handleBackButton,
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _isDarkMode
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.arrow_back_ios_new,
+                  color: _isDarkMode ? Colors.white : Colors.black87,
+                  size: 18,
+                ),
               ),
-              onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
               widget.title.toUpperCase(),
               style: TextStyle(
                 color: _isDarkMode ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                letterSpacing: 0.5,
               ),
             ),
             actions: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 8, right: 8),
-                    child: IconButton(
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _showCalculatorDialog,
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: _isDarkMode 
-                              ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                              : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
-                          ),
-                          borderRadius: BorderRadius.circular(8),
+                          color: const Color(0xFF4ECDC4).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.calculate, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.calculate,
+                          color: Color(0xFF4ECDC4),
+                          size: 22,
+                        ),
                       ),
-                      onPressed: _showCalculatorDialog,
                     ),
-                  ),
-                  SettingsButton(
-                    isDarkMode: _isDarkMode,
-                    onPressed: () {
-                      _scaffoldKey.currentState?.openEndDrawer();
-                    },
-                  ),
-                ],
+                    GestureDetector(
+                      onTap: () {
+                        _scaffoldKey.currentState?.openEndDrawer();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _isDarkMode
+                              ? Colors.white.withOpacity(0.1)
+                              : Colors.black.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.menu,
+                          color: _isDarkMode ? Colors.white : Colors.black87,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           endDrawer: _buildSidebar(),
-          body: Container(
-            color: backgroundColor,
-            child: Column(
-              children: [
-                // Bouton d'ajout de titre principal
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8.0, 20.0, 8.0, 20.0),
+          body: GestureDetector(
+            onTap: () {
+              // Fermer le clavier quand on tape en dehors des champs
+              FocusScope.of(context).unfocus();
+            },
+            child: Container(
+              color: backgroundColor,
+              child: Column(
+                children: [
+                  // Bouton d'ajout de titre principal
+                  Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 20.0),
                   child: Row(
                     children: [
                       // Bouton principal "Ajouter un titre"
                       Expanded(
                         flex: 3,
-                        child: ElevatedButton.icon(
-                          onPressed: _addMainTitle,
-                          icon: const Icon(Icons.add, color: Colors.white),
-                          label: const Text(
-                            'Ajouter un titre',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                        child: GestureDetector(
+                          onTap: _addMainTitle,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4ECDC4),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF4ECDC4).withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.add, color: Colors.white, size: 22),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Ajouter un titre',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       // Bouton pour les titres prédéfinis
-                      Expanded(
-                        flex: 1,
-                        child: ElevatedButton(
-                          onPressed: _showPredefinedTitlesDialog,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isDarkMode ? const Color(0xFFFF6B35) : const Color(0xFFFF8E53),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                      GestureDetector(
+                        onTap: _showPredefinedTitlesDialog,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _isDarkMode
+                                ? Colors.white.withOpacity(0.1)
+                                : Colors.black.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFF4ECDC4).withOpacity(0.3),
+                              width: 1.5,
+                            ),
                           ),
                           child: const Icon(
                             Icons.list_alt,
-                            color: Colors.white,
+                            color: Color(0xFF4ECDC4),
                             size: 24,
                           ),
                         ),
@@ -1753,6 +2153,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
               ],
             ),
           ),
+            ),
         ),
       ),
     );
@@ -1773,8 +2174,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: _isDarkMode 
-                  ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                  : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
+                  ? [const Color(0xFF4ECDC4), const Color(0xFF45B8AC)]
+                  : [const Color(0xFF4ECDC4), const Color(0xFF5FA8D3)],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -1829,12 +2230,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             )
                           : Row(
                               children: [
-                                Text(
-                                  '${mainIndex + 1}. ${mainTitle.name.toUpperCase()}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                Flexible(
+                                  child: Text(
+                                    '${mainIndex + 1}. ${mainTitle.name.toUpperCase()}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -1847,7 +2251,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                       }
                                     });
                                   },
-                                  child: Icon(
+                                  child: const Icon(
                                     Icons.edit,
                                     color: Colors.white70,
                                     size: 16,
@@ -1934,7 +2338,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
             Container(
               margin: const EdgeInsets.only(top: 10),
               decoration: BoxDecoration(
-                color: _isDarkMode ? Colors.grey[800] : Colors.white,
+                color: _isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
@@ -1951,7 +2355,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                      color: _isDarkMode ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
                       borderRadius: const BorderRadius.only(
                         bottomLeft: Radius.circular(12),
                         bottomRight: Radius.circular(12),
@@ -1968,15 +2372,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                   mainTitle.directItems.add(TableItem());
                                 });
                               },
-                              icon: Icon(
+                              icon: const Icon(
                                 Icons.add,
-                                color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                                color: Color(0xFF4ECDC4),
                                 size: 16,
                               ),
-                              label: Text(
+                              label: const Text(
                                 'Ajouter ligne',
                                 style: TextStyle(
-                                  color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                                  color: Color(0xFF4ECDC4),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -2051,8 +2455,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             ),
                             Text(
                               '${mainTitle.directItems.fold(0.0, (sum, item) => sum + item.total).toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                              style: const TextStyle(
+                                color: Color(0xFF4ECDC4),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -2084,12 +2488,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
           margin: const EdgeInsets.only(top: 16, bottom: 8),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: _isDarkMode 
-                ? [const Color(0xFFFF6B35), const Color(0xFFFF8E53)]
-                : [const Color.fromARGB(255, 54, 108, 255), const Color.fromARGB(255, 86, 255, 255)],
-            ),
+            color: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFF4ECDC4),
+              width: 2,
+            ),
           ),
           child: Row(
             children: [
@@ -2116,8 +2520,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               });
                               return _subTitleFocusNodes['sub_${mainIndex}_${subIndex}']!;
                             })(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: _isDarkMode ? Colors.white : Colors.black87,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -2142,12 +2546,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           )
                         : Row(
                             children: [
-                              Text(
-                                '${mainIndex + 1}.${subIndex + 1} ${subTitle.name}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                              Flexible(
+                                child: Text(
+                                  '${mainIndex + 1}.${subIndex + 1} ${subTitle.name}',
+                                  style: TextStyle(
+                                    color: _isDarkMode ? Colors.white : Colors.black87,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -2162,7 +2569,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 },
                                 child: Icon(
                                   Icons.edit,
-                                  color: Colors.white70,
+                                  color: _isDarkMode ? Colors.white70 : Colors.black54,
                                   size: 14,
                                 ),
                               ),
@@ -2173,8 +2580,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: const Color(0xFF4ECDC4).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: const Color(0xFF4ECDC4),
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2182,7 +2593,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Text(
                             _getDisplayTotal('sub_${mainTitle.name}_${subTitle.name}'),
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF4ECDC4),
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
@@ -2265,7 +2676,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.delete_outline, color: Colors.white70),
+                icon: Icon(
+                  Icons.delete_outline, 
+                  color: _isDarkMode ? Colors.white70 : Colors.black54,
+                ),
                 tooltip: 'Supprimer le sous-titre',
               ),
             ],
@@ -2275,7 +2689,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
         // Tableau (séparé)
         Container(
           decoration: BoxDecoration(
-            color: _isDarkMode ? Colors.grey[800] : Colors.white,
+            color: _isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
@@ -2293,7 +2707,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                  color: _isDarkMode ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(12),
                     bottomRight: Radius.circular(12),
@@ -2310,15 +2724,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               subTitle.items.add(TableItem());
                             });
                           },
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.add,
-                            color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                            color: Color(0xFF4ECDC4),
                             size: 16,
                           ),
-                          label: Text(
+                          label: const Text(
                             'Ajouter ligne',
                             style: TextStyle(
-                              color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                              color: Color(0xFF4ECDC4),
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -2394,8 +2808,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         ),
                         Text(
                           '${_getAdjustedTotal('sub_${mainTitle.name}_${subTitle.name}').toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                          style: const TextStyle(
+                            color: Color(0xFF4ECDC4),
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
@@ -2417,7 +2831,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 0),
       decoration: BoxDecoration(
-        color: _isDarkMode ? Colors.grey[800] : Colors.white,
+        color: _isDarkMode ? const Color(0xFF2A2A2A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -2426,7 +2840,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
             decoration: BoxDecoration(
-              color: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+              color: _isDarkMode ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -2546,7 +2960,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: _isDarkMode ? Colors.white : Colors.black,
-                          fontSize: 14,
+                          fontSize: 12,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -2559,7 +2973,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: _isDarkMode ? Colors.white : Colors.black,
-                          fontSize: 14,
+                          fontSize: 12,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -2738,10 +3152,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
                     fontSize: 14,
                   ),
-                  border: InputBorder.none,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
                   isDense: false,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                  fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                  fillColor: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
                   filled: true,
                 ),
               ),
@@ -2781,10 +3198,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   hintStyle: TextStyle(
                     color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
                   ),
-                  border: InputBorder.none,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
                   isDense: false,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                  fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                  fillColor: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
                   filled: true,
                 ),
               ),
@@ -2863,10 +3283,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       hintStyle: TextStyle(
                         color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
                       ),
-                      border: InputBorder.none,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
                       isDense: false,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                      fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                      fillColor: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
                       filled: true,
                     ),
                   )
@@ -2918,10 +3341,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       hintStyle: TextStyle(
                         color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
                       ),
-                      border: InputBorder.none,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
                       isDense: false,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                      fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                      fillColor: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
                       filled: true,
                     ),
                   )
@@ -2973,10 +3399,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       hintStyle: TextStyle(
                         color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
                       ),
-                      border: InputBorder.none,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
                       isDense: false,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                      fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                      fillColor: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
                       filled: true,
                     ),
                   )
@@ -3026,10 +3455,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   hintStyle: TextStyle(
                     color: _isDarkMode ? Colors.grey[400] : Colors.grey[500],
                   ),
-                  border: InputBorder.none,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
                   isDense: false,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                  fillColor: _isDarkMode ? Colors.grey[700] : const Color(0xFFF8F9FA),
+                  fillColor: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
                   filled: true,
                 ),
               ),
@@ -3051,8 +3483,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       _getItemDisplayTotal(item),
                       style: TextStyle(
                         color: _getItemAdjustmentKey(item).isNotEmpty && _adjustments.containsKey(_getItemAdjustmentKey(item))
-                          ? (_isDarkMode ? Colors.orange : Colors.deepOrange)
-                          : (_isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA)),
+                          ? Colors.orange
+                          : const Color(0xFF4ECDC4),
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
@@ -3221,7 +3653,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     return Drawer(
       width: 280,
       child: Container(
-        color: _isDarkMode ? const Color(0xFF1A1A2E) : Colors.white,
+        color: _isDarkMode ? const Color(0xFF191919) : const Color(0xFFFAF7F0),
         child: Column(
           children: [
             Container(
@@ -3230,8 +3662,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: _isDarkMode 
-                    ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                    : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
+                    ? [const Color(0xFF4ECDC4), const Color(0xFF45B8AC)]
+                    : [const Color(0xFF4ECDC4), const Color(0xFF5FA8D3)],
                 ),
               ),
               child: const Center(
@@ -3289,7 +3721,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               const Text('Export Excel en cours...'),
                             ],
                           ),
-                          backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                          backgroundColor: const Color(0xFF4ECDC4),
                           duration: const Duration(seconds: 3),
                         ),
                       );
@@ -3371,7 +3803,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 Navigator.pop(context);
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _isDarkMode ? const Color(0xFF9C27B0) : const Color(0xFF00D4AA),
+                                backgroundColor: const Color(0xFF4ECDC4),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               child: const Text('Réinitialiser', style: TextStyle(color: Colors.white)),
@@ -3426,8 +3858,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: _isDarkMode 
-                        ? [const Color(0xFF9C27B0), const Color(0xFFE91E63)]
-                        : [const Color(0xFF00D4AA), const Color(0xFF00C9FF)],
+                        ? [const Color(0xFF4ECDC4), const Color(0xFF45B8AC)]
+                        : [const Color(0xFF4ECDC4), const Color(0xFF5FA8D3)],
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -3597,21 +4029,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
         _hauteurControllers[newItem.uniqueId] = TextEditingController(text: newItem.hauteur == 0 ? '' : newItem.hauteur.toString());
         _coefControllers[newItem.uniqueId] = TextEditingController(text: newItem.coef == 1.0 ? '' : newItem.coef.toString());
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Ligne dupliquée avec des données fraîches'),
-          action: SnackBarAction(
-            label: 'Annuler',
-            onPressed: () {
-              _safeSetState(() {
-                targetList!.removeAt(targetIndex + 1);
-              });
-            },
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
     }
   }
 
@@ -3741,21 +4158,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
         _hauteurControllers.remove(item.uniqueId);
         _coefControllers.remove(item.uniqueId);
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Ligne supprimée'),
-          action: SnackBarAction(
-            label: 'Annuler',
-            onPressed: () {
-              _safeSetState(() {
-                targetList!.insert(targetIndex, item);
-              });
-            },
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:ui';
 import '../services/theme_service.dart';
 import '../services/outlook_service.dart';
 import 'entry_point.dart';
@@ -229,7 +230,7 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
               children: [
                 Icon(
                   Icons.auto_awesome,
-                  color: Colors.purple.shade400,
+                  color: const Color(0xFFFFA07A),
                   size: 24,
                 ),
                 const SizedBox(width: 12),
@@ -254,7 +255,7 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: Row(
@@ -291,31 +292,51 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
                 Container(
                   constraints: const BoxConstraints(minHeight: 120, maxHeight: 200),
                   decoration: BoxDecoration(
+                    color: widget.themeService.isDarkMode 
+                      ? Colors.grey[850]! 
+                      : Colors.white,
                     border: Border.all(
                       color: widget.themeService.isDarkMode 
                         ? Colors.grey[600]! 
                         : Colors.grey[300]!,
                     ),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: TextField(
-                    controller: specificationsController,
-                    maxLines: null,
-                    enabled: !isGenerating,
-                    decoration: InputDecoration(
-                      hintText: useExistingContent 
-                        ? 'Ex: Rendre plus formel, ajouter des détails techniques...'
-                        : 'Ex: Rédiger un email de demande de rendez-vous professionnel...',
-                      hintStyle: TextStyle(
-                        color: widget.themeService.subtitleColor,
-                        fontSize: 13,
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: TextField(
+                      controller: specificationsController,
+                      maxLines: null,
+                      enabled: !isGenerating,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        hintText: useExistingContent 
+                          ? 'Ex: Rendre plus formel, ajouter des détails techniques...'
+                          : 'Ex: Rédiger un email de demande de rendez-vous professionnel...',
+                        hintStyle: TextStyle(
+                          color: widget.themeService.subtitleColor,
+                          fontSize: 13,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
                       ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                    style: TextStyle(
-                      color: widget.themeService.textColor,
-                      fontSize: 14,
+                      style: TextStyle(
+                        color: widget.themeService.textColor,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -329,7 +350,7 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.purple.shade400,
+                            const Color(0xFFFFA07A),
                           ),
                         ),
                       ),
@@ -411,26 +432,32 @@ class _OutlookEmailDialogState extends State<_OutlookEmailDialog> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isGenerating 
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: isGenerating 
                     ? Colors.grey 
-                    : Colors.purple.shade400,
-                  foregroundColor: Colors.white,
+                    : const Color(0xFFFFA07A),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isGenerating ? Colors.grey : const Color(0xFFFFA07A),
+                      width: 2,
+                    ),
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.auto_awesome, size: 18),
-                    const SizedBox(width: 8),
-                    Text(isGenerating ? 'Génération...' : 'Générer'),
-                  ],
-                ),
+                child: isGenerating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
+                      ),
+                    )
+                  : const Text('Générer'),
               ),
             ],
           );
@@ -518,67 +545,56 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: BoxDecoration(
-          color: widget.themeService.surfaceColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+    return Scaffold(
+      backgroundColor: widget.themeService.isDarkMode
+          ? const Color(0xFF191919)
+          : const Color(0xFFFAF7F0),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: widget.themeService.isDarkMode
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.black.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
+            child: Icon(
+              Icons.arrow_back_ios_new,
+              color: widget.themeService.isDarkMode ? Colors.white : Colors.black87,
+              size: 18,
+            ),
+          ),
         ),
-        child: Column(
-          children: [
-            // Header style Outlook
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: widget.themeService.primaryGradient,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    widget.type == EmailDialogType.compose ? Icons.edit : Icons.reply,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    widget.type == EmailDialogType.compose ? 'Nouveau message' : 'Répondre',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Contenu du dialogue
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    // Champ À avec autocomplétion
-                    Column(
+        title: Text(
+          widget.type == EmailDialogType.compose ? 'Nouveau message' : 'Répondre',
+          style: TextStyle(
+            color: widget.themeService.isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Container(
+          color: widget.themeService.isDarkMode
+              ? const Color(0xFF191919)
+              : const Color(0xFFFAF7F0),
+          child: Column(
+            children: [
+              
+              // Contenu du dialogue
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // Champ À avec autocomplétion
+                      Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildInputField(
@@ -604,7 +620,7 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                               color: widget.themeService.isDarkMode 
                                 ? Colors.grey[800] 
                                 : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: widget.themeService.isDarkMode 
                                   ? Colors.grey[600]! 
@@ -648,8 +664,13 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                                           Container(
                                             width: 36,
                                             height: 36,
-                                            decoration: BoxDecoration(
-                                              gradient: widget.themeService.primaryGradient,
+                                            decoration: const BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Color(0xFFFFA07A),
+                                                  Color(0xFFFF8C69),
+                                                ],
+                                              ),
                                               shape: BoxShape.circle,
                                             ),
                                             child: Center(
@@ -742,7 +763,7 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                               color: widget.themeService.isDarkMode 
                                 ? Colors.grey[800] 
                                 : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: widget.themeService.isDarkMode 
                                   ? Colors.grey[600]! 
@@ -786,8 +807,13 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                                           Container(
                                             width: 36,
                                             height: 36,
-                                            decoration: BoxDecoration(
-                                              gradient: widget.themeService.primaryGradient,
+                                            decoration: const BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Color(0xFFFFA07A),
+                                                  Color(0xFFFF8C69),
+                                                ],
+                                              ),
                                               shape: BoxShape.circle,
                                             ),
                                             child: Center(
@@ -870,7 +896,7 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                                   color: widget.themeService.isDarkMode 
           ? Colors.grey[800]! 
           : Colors.grey[100]!,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -907,7 +933,7 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
                                       color: widget.themeService.backgroundColor,
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -917,7 +943,7 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                                             Icon(
                                               _getFileIcon(attachment.extension ?? ''),
                                               size: 22,
-                                              color: widget.themeService.primaryColor,
+                                              color: const Color(0xFFFFA07A),
                                             ),
                                             const Spacer(),
                                             InkWell(
@@ -974,41 +1000,36 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                     // Boutons pièce jointe et IA
                     Row(
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: _addAttachment,
-                          icon: const Icon(Icons.attach_file, size: 18),
-                          label: const Text('Ajouter une pièce jointe'),
-                                  style: ElevatedButton.styleFrom(
-          backgroundColor: widget.themeService.isDarkMode 
-            ? Colors.grey[700]! 
-            : Colors.grey[200]!,
-          foregroundColor: widget.themeService.textColor,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _addAttachment,
+                            icon: const Icon(Icons.attach_file, size: 18),
+                            label: const Text('Ajouter une pièce jointe'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: widget.themeService.isDarkMode 
+                                ? Colors.grey[700]! 
+                                : Colors.grey[200]!,
+                              foregroundColor: widget.themeService.textColor,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        ElevatedButton.icon(
+                        ElevatedButton(
                           onPressed: _showAIGenerateDialog,
-                          icon: Icon(
-                            Icons.auto_awesome,
-                            size: 18,
-                            color: Colors.purple.shade400,
-                          ),
-                          label: Text(
-                            'Générer avec IA',
-                            style: TextStyle(color: Colors.purple.shade400),
-                          ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple.withOpacity(0.1),
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: const Color(0xFFFFA07A),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(color: Colors.purple.shade400),
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: Color(0xFFFFA07A), width: 2),
                             ),
                           ),
+                          child: const Text('Générer'),
                         ),
                       ],
                     ),
@@ -1017,24 +1038,31 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                     // Champ Message
                     Expanded(
                       child: Container(
+                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
+                          color: widget.themeService.isDarkMode 
+                            ? Colors.grey[850]! 
+                            : Colors.white,
                           border: Border.all(
                             color: widget.themeService.isDarkMode 
                               ? Colors.grey[600]! 
                               : Colors.grey[300]!,
                           ),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: TextField(
                           controller: _bodyController,
                           maxLines: null,
                           expands: true,
+                          textAlignVertical: TextAlignVertical.top,
                           decoration: InputDecoration(
                             hintText: 'Tapez votre message ici...',
                             hintStyle: TextStyle(
                               color: widget.themeService.subtitleColor,
                             ),
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16),
                           ),
                           style: TextStyle(
@@ -1054,12 +1082,16 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                        color: widget.themeService.isDarkMode 
-          ? Colors.grey[850]! 
-          : Colors.grey[100]!,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+                color: widget.themeService.isDarkMode 
+                    ? const Color(0xFF191919)
+                    : const Color(0xFFFAF7F0),
+                border: Border(
+                  top: BorderSide(
+                    color: widget.themeService.isDarkMode 
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.05),
+                    width: 1,
+                  ),
                 ),
               ),
               child: Row(
@@ -1076,14 +1108,15 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                   ElevatedButton(
                     onPressed: _isSending ? null : _sendEmail,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.themeService.primaryColor,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: const Color(0xFFFFA07A),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Color(0xFFFFA07A), width: 2),
                       ),
                     ),
                     child: _isSending
@@ -1092,7 +1125,7 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
                           ),
                         )
                       : Row(
@@ -1110,6 +1143,7 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
               ),
             ),
           ],
+        ),
         ),
       ),
     );
@@ -1156,13 +1190,17 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
     Function(bool)? onFocusChange,
   }) {
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
+        color: widget.themeService.isDarkMode 
+          ? Colors.grey[850]! 
+          : Colors.white,
         border: Border.all(
           color: widget.themeService.isDarkMode 
             ? Colors.grey[600]! 
             : Colors.grey[300]!,
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Focus(
         onFocusChange: onFocusChange,
@@ -1170,6 +1208,10 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
           controller: controller,
           focusNode: focusNode,
           decoration: InputDecoration(
+            filled: true,
+            fillColor: widget.themeService.isDarkMode 
+              ? Colors.grey[850]! 
+              : Colors.white,
             labelText: label,
             labelStyle: TextStyle(
               color: widget.themeService.subtitleColor,
@@ -1180,6 +1222,8 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
               size: 20,
             ),
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
@@ -1195,21 +1239,23 @@ Génère uniquement le contenu du message, sans formule de début (pas de "Cher/
   }
 }
 
-// Dialogue d'email avec contenu IA pré-rempli
+// Dialogue d'email unifié (nouveau message ou réponse avec IA)
 class _OutlookEmailDialogWithAI extends StatefulWidget {
   final ThemeService themeService;
-  final EmailMessage replyTo;
-  final String aiGeneratedBody;
+  final EmailMessage? replyTo;
+  final String? aiGeneratedBody;
   final Function(String to, String subject, String body, List<PlatformFile> attachments) onSend;
   final OutlookService outlookService;
+  final bool isNewMessage;
 
   const _OutlookEmailDialogWithAI({
     super.key,
     required this.themeService,
-    required this.replyTo,
-    required this.aiGeneratedBody,
+    this.replyTo,
+    this.aiGeneratedBody,
     required this.onSend,
     required this.outlookService,
+    this.isNewMessage = false,
   });
 
   @override
@@ -1223,23 +1269,109 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
   late TextEditingController _bodyController;
   final List<PlatformFile> _attachments = [];
   bool _isSending = false;
+  
+  // Autocomplétion des contacts
+  List<Contact> _allContacts = [];
+  List<Contact> _filteredContacts = [];
+  List<Contact> _filteredCcContacts = [];
+  bool _showSuggestions = false;
+  bool _showCcSuggestions = false;
+  final FocusNode _toFieldFocusNode = FocusNode();
+  final FocusNode _ccFieldFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _toController = TextEditingController(text: widget.replyTo.senderEmail);
+    _toController = TextEditingController(text: widget.replyTo?.senderEmail ?? '');
     _ccController = TextEditingController();
-    _subjectController = TextEditingController(text: 'Re: ${widget.replyTo.subject}');
-    _bodyController = TextEditingController(text: widget.aiGeneratedBody);
+    _subjectController = TextEditingController(
+      text: widget.replyTo != null 
+        ? 'Re: ${widget.replyTo?.subject ?? ''}' 
+        : '',
+    );
+    _bodyController = TextEditingController(text: widget.aiGeneratedBody ?? '');
+    
+    _toController.addListener(_onToFieldChanged);
+    _ccController.addListener(_onCcFieldChanged);
+    _loadContacts();
   }
 
   @override
   void dispose() {
+    _toController.removeListener(_onToFieldChanged);
+    _ccController.removeListener(_onCcFieldChanged);
     _toController.dispose();
     _ccController.dispose();
     _subjectController.dispose();
     _bodyController.dispose();
+    _toFieldFocusNode.dispose();
+    _ccFieldFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadContacts() async {
+    final contacts = await widget.outlookService.getContacts();
+    setState(() {
+      _allContacts = contacts;
+    });
+  }
+
+  void _onToFieldChanged() {
+    final query = _toController.text.toLowerCase();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _showSuggestions = false;
+        _filteredContacts = [];
+      });
+      return;
+    }
+    
+    final filtered = _allContacts.where((contact) {
+      return contact.displayName.toLowerCase().contains(query) ||
+             contact.emailAddress.toLowerCase().contains(query);
+    }).toList();
+    
+    setState(() {
+      _filteredContacts = filtered;
+      _showSuggestions = filtered.isNotEmpty;
+    });
+  }
+
+  void _onCcFieldChanged() {
+    final query = _ccController.text.toLowerCase();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _showCcSuggestions = false;
+        _filteredCcContacts = [];
+      });
+      return;
+    }
+    
+    final filtered = _allContacts.where((contact) {
+      return contact.displayName.toLowerCase().contains(query) ||
+             contact.emailAddress.toLowerCase().contains(query);
+    }).toList();
+    
+    setState(() {
+      _filteredCcContacts = filtered;
+      _showCcSuggestions = filtered.isNotEmpty;
+    });
+  }
+
+  void _selectContact(Contact contact) {
+    _toController.text = contact.emailAddress;
+    setState(() {
+      _showSuggestions = false;
+    });
+  }
+
+  void _selectCcContact(Contact contact) {
+    _ccController.text = contact.emailAddress;
+    setState(() {
+      _showCcSuggestions = false;
+    });
   }
 
   Future<void> _addAttachment() async {
@@ -1269,6 +1401,337 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
     setState(() {
       _attachments.removeAt(index);
     });
+  }
+
+  void _showAIGenerateDialog() {
+    final TextEditingController specificationsController = TextEditingController();
+    bool isGenerating = false;
+    bool useExistingContent = _bodyController.text.trim().isNotEmpty;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: widget.themeService.surfaceColor,
+            title: Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  color: const Color(0xFFFFA07A),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Générer avec IA',
+                    style: TextStyle(
+                      color: widget.themeService.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (useExistingContent) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue.shade400,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'L\'IA utilisera le contenu actuel comme base',
+                            style: TextStyle(
+                              color: widget.themeService.textColor,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                Text(
+                  'Instructions pour l\'IA',
+                  style: TextStyle(
+                    color: widget.themeService.textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  constraints: const BoxConstraints(minHeight: 120, maxHeight: 200),
+                  decoration: BoxDecoration(
+                    color: widget.themeService.isDarkMode 
+                      ? Colors.grey[850]! 
+                      : Colors.white,
+                    border: Border.all(
+                      color: widget.themeService.isDarkMode 
+                        ? Colors.grey[600]! 
+                        : Colors.grey[300]!,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: TextField(
+                      controller: specificationsController,
+                      maxLines: null,
+                      enabled: !isGenerating,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: widget.themeService.isDarkMode 
+                          ? Colors.grey[850]! 
+                          : Colors.white,
+                        hintText: useExistingContent 
+                          ? 'Ex: Rendre plus formel, ajouter des détails techniques...'
+                          : 'Ex: Rédiger un email de demande de rendez-vous professionnel...',
+                        hintStyle: TextStyle(
+                          color: widget.themeService.subtitleColor,
+                          fontSize: 13,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                      style: TextStyle(
+                        color: widget.themeService.textColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                if (isGenerating) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            const Color(0xFFFFA07A),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Génération en cours...',
+                        style: TextStyle(
+                          color: widget.themeService.subtitleColor,
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isGenerating ? null : () => Navigator.of(context).pop(),
+                child: Text(
+                  'Annuler',
+                  style: TextStyle(
+                    color: isGenerating 
+                      ? widget.themeService.subtitleColor.withOpacity(0.5)
+                      : widget.themeService.subtitleColor,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: isGenerating ? null : () async {
+                  if (specificationsController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Veuillez entrer des instructions'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
+                  setDialogState(() => isGenerating = true);
+
+                  try {
+                    final generatedText = await _generateEmailContent(
+                      specificationsController.text.trim(),
+                      useExistingContent ? _bodyController.text : null,
+                      _subjectController.text,
+                    );
+
+                    Navigator.of(context).pop();
+
+                    if (generatedText != null) {
+                      setState(() {
+                        _bodyController.text = generatedText;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Contenu généré avec succès !'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Erreur lors de la génération'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erreur: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: isGenerating 
+                    ? Colors.grey 
+                    : const Color(0xFFFFA07A),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isGenerating ? Colors.grey : const Color(0xFFFFA07A),
+                      width: 2,
+                    ),
+                  ),
+                ),
+                child: isGenerating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
+                      ),
+                    )
+                  : const Text('Générer'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<String?> _generateEmailContent(String instructions, String? existingContent, String subject) async {
+    try {
+      await dotenv.load(fileName: ".env");
+      final apiKey = dotenv.env['FIREWORK_APIKEY'];
+      
+      if (apiKey == null || apiKey.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Clé API Fireworks non configurée'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return null;
+      }
+
+      String prompt;
+      if (existingContent != null && existingContent.isNotEmpty) {
+        prompt = '''Améliore/Modifie ce contenu d'email selon ces instructions :
+
+Sujet de l'email: $subject
+
+Contenu actuel:
+$existingContent
+
+Instructions:
+$instructions
+
+Génère le nouveau contenu en gardant un ton professionnel. Ne mets pas de formule de politesse de début (Cher/Chère) ni de signature.''';
+      } else {
+        prompt = '''Rédige le contenu d'un email professionnel selon ces instructions :
+
+Sujet: $subject
+
+Instructions:
+$instructions
+
+Génère uniquement le contenu du message, sans formule de début (pas de "Cher/Chère") ni de signature. Sois professionnel et concis.''';
+      }
+
+      final response = await http.post(
+        Uri.parse('https://api.fireworks.ai/inference/v1/chat/completions'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'accounts/fireworks/models/deepseek-v3p1-terminus',
+          'max_tokens': 20480,
+          'top_p': 1,
+          'top_k': 40,
+          'presence_penalty': 0,
+          'frequency_penalty': 0,
+          'temperature': 0.6,
+          'messages': [
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ]
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'] as String;
+        return content.trim();
+      } else {
+        print('Erreur API Fireworks: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Erreur lors de l\'appel à l\'IA: $e');
+      return null;
+    }
   }
 
   Future<void> _sendEmail() async {
@@ -1333,113 +1796,315 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: BoxDecoration(
-          color: widget.themeService.surfaceColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+    return Scaffold(
+      backgroundColor: widget.themeService.isDarkMode
+          ? const Color(0xFF191919)
+          : const Color(0xFFFAF7F0),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: widget.themeService.isDarkMode
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.black.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
+            child: Icon(
+              Icons.arrow_back_ios_new,
+              color: widget.themeService.isDarkMode ? Colors.white : Colors.black87,
+              size: 18,
+            ),
+          ),
         ),
-        child: Column(
-          children: [
-            // Header style Outlook avec badge IA
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.purple.shade400,
-                    Colors.blue.shade400,
-                  ],
-                ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Réponse générée par IA',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Contenu du dialogue
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    // Info badge
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.purple.shade200),
-                      ),
-                      child: Row(
+        title: Text(
+          'Nouveau message' ,
+          style: TextStyle(
+            color: widget.themeService.isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Container(
+          color: widget.themeService.isDarkMode
+              ? const Color(0xFF191919)
+              : const Color(0xFFFAF7F0),
+          child: Column(
+            children: [
+              
+              // Contenu du dialogue
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // Champ À avec autocomplétion
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.purple.shade400,
-                            size: 20,
+                          _buildInputField(
+                            controller: _toController,
+                            label: 'À',
+                            icon: Icons.person,
+                            focusNode: _toFieldFocusNode,
+                            onFocusChange: (hasFocus) {
+                              if (!hasFocus) {
+                                setState(() => _showSuggestions = false);
+                              } else {
+                                _onToFieldChanged();
+                              }
+                            },
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Vous pouvez modifier le contenu avant d\'envoyer',
-                              style: TextStyle(
-                                color: widget.themeService.textColor,
-                                fontSize: 13,
+                          
+                          // Suggestions de contacts
+                          if (_showSuggestions && _filteredContacts.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              constraints: const BoxConstraints(maxHeight: 200),
+                              decoration: BoxDecoration(
+                                color: widget.themeService.isDarkMode 
+                                  ? Colors.grey[800] 
+                                  : Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: widget.themeService.isDarkMode 
+                                    ? Colors.grey[600]! 
+                                    : Colors.grey[300]!,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: _filteredContacts.length > 5 ? 5 : _filteredContacts.length,
+                                itemBuilder: (context, index) {
+                                  final contact = _filteredContacts[index];
+                                  return Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => _selectContact(contact),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: widget.themeService.isDarkMode 
+                                                ? Colors.grey[700]! 
+                                                : Colors.grey[200]!,
+                                              width: index < _filteredContacts.length - 1 && index < 4 ? 1 : 0,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            // Avatar
+                                            Container(
+                                              width: 36,
+                                              height: 36,
+                                              decoration: const BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Color(0xFFFFA07A),
+                                                    Color(0xFFFF8C69),
+                                                  ],
+                                                ),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  contact.displayName.isNotEmpty 
+                                                    ? contact.displayName[0].toUpperCase()
+                                                    : 'U',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            
+                                            // Infos contact
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    contact.displayName,
+                                                    style: TextStyle(
+                                                      color: widget.themeService.textColor,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    contact.emailAddress,
+                                                    style: TextStyle(
+                                                      color: widget.themeService.subtitleColor,
+                                                      fontSize: 12,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
                     
-                    // Champ À
-                    _buildInputField(
-                      controller: _toController,
-                      label: 'À',
-                      icon: Icons.person,
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Champ CC (Copie)
-                    _buildInputField(
-                      controller: _ccController,
-                      label: 'Cc (Copie)',
-                      icon: Icons.person_add_alt,
+                    // Champ CC (Copie) avec autocomplétion
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInputField(
+                          controller: _ccController,
+                          label: 'Cc (Copie)',
+                          icon: Icons.person_add_alt,
+                          focusNode: _ccFieldFocusNode,
+                          onFocusChange: (hasFocus) {
+                            if (!hasFocus) {
+                              setState(() => _showCcSuggestions = false);
+                            } else {
+                              _onCcFieldChanged();
+                            }
+                          },
+                        ),
+                        
+                        // Suggestions de contacts pour CC
+                        if (_showCcSuggestions && _filteredCcContacts.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            decoration: BoxDecoration(
+                              color: widget.themeService.isDarkMode 
+                                ? Colors.grey[800] 
+                                : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: widget.themeService.isDarkMode 
+                                  ? Colors.grey[600]! 
+                                  : Colors.grey[300]!,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _filteredCcContacts.length > 5 ? 5 : _filteredCcContacts.length,
+                              itemBuilder: (context, index) {
+                                final contact = _filteredCcContacts[index];
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _selectCcContact(contact),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: widget.themeService.isDarkMode 
+                                              ? Colors.grey[700]! 
+                                              : Colors.grey[200]!,
+                                            width: index < _filteredCcContacts.length - 1 && index < 4 ? 1 : 0,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Avatar
+                                          Container(
+                                            width: 36,
+                                            height: 36,
+                                            decoration: const BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Color(0xFFFFA07A),
+                                                  Color(0xFFFF8C69),
+                                                ],
+                                              ),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                contact.displayName.isNotEmpty 
+                                                  ? contact.displayName[0].toUpperCase()
+                                                  : 'U',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          
+                                          // Infos contact
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  contact.displayName,
+                                                  style: TextStyle(
+                                                    color: widget.themeService.textColor,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  contact.emailAddress,
+                                                  style: TextStyle(
+                                                    color: widget.themeService.subtitleColor,
+                                                    fontSize: 12,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     
@@ -1460,7 +2125,7 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
                           color: widget.themeService.isDarkMode 
                             ? Colors.grey[800]! 
                             : Colors.grey[100]!,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1496,7 +2161,7 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
                                       color: widget.themeService.backgroundColor,
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1507,7 +2172,7 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
                                             Icon(
                                               _getFileIcon(attachment.extension ?? ''),
                                               size: 20,
-                                              color: widget.themeService.primaryColor,
+                                              color: const Color(0xFFFFA07A),
                                             ),
                                             const Spacer(),
                                             InkWell(
@@ -1560,23 +2225,39 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
                       const SizedBox(height: 16),
                     ],
                     
-                    // Bouton ajouter pièce jointe
+                    // Boutons pièce jointe et IA
                     Row(
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: _addAttachment,
-                          icon: const Icon(Icons.attach_file, size: 18),
-                          label: const Text('Ajouter une pièce jointe'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.themeService.isDarkMode 
-                              ? Colors.grey[700]! 
-                              : Colors.grey[200]!,
-                            foregroundColor: widget.themeService.textColor,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _addAttachment,
+                            icon: const Icon(Icons.attach_file, size: 18),
+                            label: const Text('Ajouter une pièce jointe'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: widget.themeService.isDarkMode 
+                                ? Colors.grey[700]! 
+                                : Colors.grey[200]!,
+                              foregroundColor: widget.themeService.textColor,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: _showAIGenerateDialog,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: const Color(0xFFFFA07A),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: Color(0xFFFFA07A), width: 2),
+                            ),
+                          ),
+                          child: const Text('Générer'),
                         ),
                       ],
                     ),
@@ -1586,32 +2267,53 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
+                          color: widget.themeService.isDarkMode 
+                            ? const Color(0xFF191919)
+                            : Colors.white,
                           border: Border.all(
-                            color: Colors.purple.shade200,
+                            color: const Color(0xFFFFA07A),
                             width: 2,
                           ),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: TextField(
                           controller: _bodyController,
                           maxLines: null,
                           expands: true,
+                          textAlignVertical: TextAlignVertical.top,
                           decoration: InputDecoration(
-                            hintText: 'Modifiez la réponse si nécessaire...',
+                            filled: true,
+                            fillColor: widget.themeService.isDarkMode 
+                              ? const Color(0xFF191919)
+                              : Colors.white,
+                            hintText: widget.isNewMessage 
+                              ? 'Tapez votre message ici...'
+                              : 'Modifiez la réponse si nécessaire...',
                             hintStyle: TextStyle(
                               color: widget.themeService.subtitleColor,
                             ),
-                            border: InputBorder.none,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                             contentPadding: const EdgeInsets.all(16),
                           ),
-                          style: TextStyle(
-                            color: widget.themeService.textColor,
-                            fontSize: 15,
-                            height: 1.5,
+                            style: TextStyle(
+                              color: widget.themeService.textColor,
+                              fontSize: 15,
+                              height: 1.5,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -1622,11 +2324,15 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: widget.themeService.isDarkMode 
-                  ? Colors.grey[850]! 
-                  : Colors.grey[100]!,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+                    ? const Color(0xFF191919)
+                    : const Color(0xFFFAF7F0),
+                border: Border(
+                  top: BorderSide(
+                    color: widget.themeService.isDarkMode 
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.05),
+                    width: 1,
+                  ),
                 ),
               ),
               child: Row(
@@ -1643,14 +2349,15 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
                   ElevatedButton(
                     onPressed: _isSending ? null : _sendEmail,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple.shade400,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: const Color(0xFFFFA07A),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Color(0xFFFFA07A), width: 2),
                       ),
                     ),
                     child: _isSending
@@ -1659,7 +2366,7 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
                           ),
                         )
                       : Row(
@@ -1676,6 +2383,7 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -1684,37 +2392,65 @@ class _OutlookEmailDialogWithAIState extends State<_OutlookEmailDialogWithAI> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    FocusNode? focusNode,
+    Function(bool)? onFocusChange,
   }) {
     return Container(
       decoration: BoxDecoration(
+        color: widget.themeService.isDarkMode 
+          ? Colors.grey[850]! 
+          : Colors.white,
         border: Border.all(
           color: widget.themeService.isDarkMode 
             ? Colors.grey[600]! 
             : Colors.grey[300]!,
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: widget.themeService.subtitleColor,
+      child: Focus(
+        onFocusChange: onFocusChange,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: widget.themeService.isDarkMode 
+                ? Colors.grey[850]! 
+                : Colors.white,
+              labelText: label,
+              labelStyle: TextStyle(
+                color: widget.themeService.subtitleColor,
+              ),
+              prefixIcon: Icon(
+                icon,
+                color: widget.themeService.subtitleColor,
+                size: 20,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+            style: TextStyle(
+              color: widget.themeService.textColor,
+              fontSize: 15,
+            ),
           ),
-          prefixIcon: Icon(
-            icon,
-            color: widget.themeService.subtitleColor,
-            size: 20,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
-        ),
-        style: TextStyle(
-          color: widget.themeService.textColor,
-          fontSize: 15,
         ),
       ),
     );
@@ -1941,7 +2677,9 @@ class _MailScreenState extends State<MailScreen> {
       builder: (context, child) {
         return Scaffold(
           key: _scaffoldKey,
-          backgroundColor: _themeService.backgroundColor,
+          backgroundColor: _themeService.isDarkMode
+              ? const Color(0xFF191919)
+              : const Color(0xFFFAF7F0),
           appBar: _buildAppBar(),
           endDrawer: _buildSidebar(),
           body: _isLoading ? _buildLoadingState() : _buildMainContent(),
@@ -1959,16 +2697,13 @@ class _MailScreenState extends State<MailScreen> {
         children: [
           GestureDetector(
             onTap: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const EntryPoint()),
-                (Route<dynamic> route) => false,
-              );
+              Navigator.of(context).pop();
             },
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
@@ -1979,7 +2714,7 @@ class _MailScreenState extends State<MailScreen> {
               ),
               child: Icon(
                 Icons.arrow_back,
-                color: _themeService.primaryColor,
+                color: _themeService.isDarkMode ? Colors.white : Colors.black87,
                 size: 20,
               ),
             ),
@@ -1987,7 +2722,7 @@ class _MailScreenState extends State<MailScreen> {
           const SizedBox(width: 12),
           Icon(
             Icons.mail,
-            color: _themeService.primaryColor,
+            color: const Color(0xFFFFA07A),
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -2002,29 +2737,12 @@ class _MailScreenState extends State<MailScreen> {
         ],
       ),
       actions: [
-        if (_isLoggedIn && _outlookService.isDemo) 
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.orange,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text(
-              'DÉMO',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
         if (_isLoggedIn)
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -2034,9 +2752,9 @@ class _MailScreenState extends State<MailScreen> {
               ],
             ),
             child: IconButton(
-              icon: Icon(
+              icon: const Icon(
                 Icons.add,
-                color: _themeService.primaryColor,
+                color: Color(0xFFFFA07A),
                 size: 20,
               ),
               onPressed: _showNewEmailDialog,
@@ -2047,7 +2765,7 @@ class _MailScreenState extends State<MailScreen> {
           margin: const EdgeInsets.only(right: 8),
           decoration: BoxDecoration(
             color: _themeService.isDarkMode ? Colors.grey[800] : Colors.white,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -2059,7 +2777,7 @@ class _MailScreenState extends State<MailScreen> {
           child: IconButton(
             icon: Icon(
               Icons.menu,
-              color: _themeService.primaryColor,
+              color: _themeService.isDarkMode ? Colors.white : Colors.black87,
               size: 20,
             ),
             onPressed: () {
@@ -2076,8 +2794,8 @@ class _MailScreenState extends State<MailScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
           ),
           const SizedBox(height: 16),
           Text(
@@ -2147,7 +2865,7 @@ class _MailScreenState extends State<MailScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: _currentTab == EmailTab.received
-                        ? _themeService.primaryColor
+                        ? const Color(0xFFFFA07A)
                         : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -2173,7 +2891,7 @@ class _MailScreenState extends State<MailScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: _currentTab == EmailTab.sent
-                        ? _themeService.primaryColor
+                        ? const Color(0xFFFFA07A)
                         : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -2199,7 +2917,7 @@ class _MailScreenState extends State<MailScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: _currentTab == EmailTab.spam
-                        ? _themeService.primaryColor
+                        ? const Color(0xFFFFA07A)
                         : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -2233,125 +2951,88 @@ class _MailScreenState extends State<MailScreen> {
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 400),
-        margin: const EdgeInsets.all(20),
+        margin: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo et titre
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: _themeService.primaryGradient,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.mail,
-                size: 48,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            Text(
-              'Outlook Mail',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: _themeService.textColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            
-            Text(
-              'Connectez-vous pour accéder à vos emails',
-              style: TextStyle(
-                fontSize: 16,
-                color: _themeService.subtitleColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 40),
-            
-            // Bouton de connexion
-            Container(
-              width: double.infinity,
-              height: 50,
-              decoration: BoxDecoration(
-                gradient: _themeService.primaryGradient,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: _themeService.primaryColor.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            // Logo simple comme dans home_screen avec Hero animation
+            Hero(
+              tag: 'mail_hero',
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFA07A).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.login,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Se connecter à Outlook',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                child: const Icon(
+                  Icons.mail,
+                  color: Color(0xFFFFA07A),
+                  size: 45,
+                ),
+              ),
+            ),
+                const SizedBox(height: 24),
+                
+                Text(
+                  'Outlook Mail',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: _themeService.textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                Text(
+                  'Connectez-vous pour accéder à vos emails',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _themeService.subtitleColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 40),
+                
+                // Bouton de connexion avec style outline
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: const Color(0xFFFFA07A),
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: const BorderSide(
+                          color: Color(0xFFFFA07A),
+                          width: 2,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            
-            if (_outlookService.isDemo) ...[
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange),
-                ),
-                child: Column(
-                  children: [
-                    Row(
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.info, color: Colors.orange),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'MODE DÉMO ACTIVÉ',
+                        Icon(
+                          Icons.login,
+                          color: Color(0xFFFFA07A),
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Se connecter à Outlook',
                           style: TextStyle(
-                            color: Colors.orange,
+                            color: Color(0xFFFFA07A),
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Cette application utilise des données de démonstration. Pour une vraie intégration Outlook, configurez votre client_id Microsoft Graph dans outlook_service.dart',
-                      style: TextStyle(
-                        color: _themeService.textColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
           ],
         ),
       ),
@@ -2399,7 +3080,7 @@ class _MailScreenState extends State<MailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _themeService.primaryColor,
+                    color: const Color(0xFFFFA07A),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -2434,7 +3115,7 @@ class _MailScreenState extends State<MailScreen> {
                             child: Padding(
                               padding: const EdgeInsets.all(16),
                               child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
                               ),
                             ),
                           );
@@ -2459,7 +3140,7 @@ class _MailScreenState extends State<MailScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
                                 ),
                               ),
                             );
@@ -2483,7 +3164,7 @@ class _MailScreenState extends State<MailScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
                                 ),
                               ),
                             );
@@ -2507,7 +3188,7 @@ class _MailScreenState extends State<MailScreen> {
     return Container(
       decoration: BoxDecoration(
         color: isSelected
-          ? _themeService.primaryColor.withOpacity(0.1)
+          ? const Color(0xFFFFA07A).withOpacity(0.1)
           : Colors.transparent,
         border: Border(
           bottom: BorderSide(
@@ -2530,8 +3211,13 @@ class _MailScreenState extends State<MailScreen> {
                     Container(
                       width: 40,
                       height: 40,
-                      decoration: BoxDecoration(
-                        gradient: _themeService.primaryGradient,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xFFFFA07A),
+                            Color(0xFFFF8C69),
+                          ],
+                        ),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -2569,7 +3255,7 @@ class _MailScreenState extends State<MailScreen> {
                               color: _themeService.isDarkMode 
                                 ? Colors.grey[700] 
                                 : Colors.grey[200],
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               _formatDate(email.receivedDateTime),
@@ -2594,13 +3280,13 @@ class _MailScreenState extends State<MailScreen> {
                               margin: const EdgeInsets.only(bottom: 4),
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: _themeService.primaryColor.withOpacity(0.1),
+                                color: const Color(0xFFFFA07A).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.attach_file,
                                 size: 14,
-                                color: _themeService.primaryColor,
+                                color: Color(0xFFFFA07A),
                               ),
                             ),
                           ),
@@ -2633,7 +3319,7 @@ class _MailScreenState extends State<MailScreen> {
                         margin: const EdgeInsets.only(right: 6),
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _themeService.primaryColor.withOpacity(0.15),
+                          color: const Color(0xFFFFA07A).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Icon(
@@ -2641,7 +3327,7 @@ class _MailScreenState extends State<MailScreen> {
                             ? Icons.reply
                             : Icons.forward,
                           size: 12,
-                          color: _themeService.primaryColor,
+                          color: const Color(0xFFFFA07A),
                         ),
                       ),
                     Expanded(
@@ -2811,7 +3497,7 @@ class _MailScreenState extends State<MailScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.reply, color: _themeService.primaryColor),
+                  icon: const Icon(Icons.reply, color: Color(0xFFFFA07A)),
                   onPressed: () => _replyToEmail(_selectedEmail!),
                   tooltip: 'Répondre',
                 ),
@@ -2837,8 +3523,13 @@ class _MailScreenState extends State<MailScreen> {
                       Container(
                         width: 50,
                         height: 50,
-                        decoration: BoxDecoration(
-                          gradient: _themeService.primaryGradient,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFFFFA07A),
+                              Color(0xFFFF8C69),
+                            ],
+                          ),
                           shape: BoxShape.circle,
                         ),
                         child: Center(
@@ -2889,7 +3580,7 @@ class _MailScreenState extends State<MailScreen> {
                         onPressed: () => _showAIReplyDialog(_selectedEmail!),
                         icon: Icon(
                           Icons.auto_awesome,
-                          color: Colors.purple.shade400,
+                          color: const Color(0xFFFFA07A),
                           size: 24,
                         ),
                         tooltip: 'Répondre avec IA',
@@ -2965,14 +3656,21 @@ class _MailScreenState extends State<MailScreen> {
     return Drawer(
       width: 280,
       child: Container(
-        color: _themeService.backgroundColor,
+        color: _themeService.isDarkMode
+            ? const Color(0xFF191919)
+            : const Color(0xFFFAF7F0),
         child: Column(
           children: [
             Container(
               height: 120,
               width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: _themeService.primaryGradient,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFFFFA07A),
+                    Color(0xFFFF8C69),
+                  ],
+                ),
               ),
               child: const Center(
                 child: Text(
@@ -3074,8 +3772,13 @@ class _MailScreenState extends State<MailScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    gradient: _themeService.primaryGradient,
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFFFA07A),
+                        Color(0xFFFF8C69),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: Colors.white, size: 20),
                 ),
@@ -3241,7 +3944,7 @@ class _MailScreenState extends State<MailScreen> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(_themeService.primaryColor),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
               ),
             ),
           );
@@ -3258,7 +3961,7 @@ class _MailScreenState extends State<MailScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.attach_file, color: _themeService.primaryColor, size: 20),
+                const Icon(Icons.attach_file, color: Color(0xFFFFA07A), size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Pièces jointes (${attachments.length})',
@@ -3294,7 +3997,7 @@ class _MailScreenState extends State<MailScreen> {
       margin: const EdgeInsets.only(right: 8),
       decoration: BoxDecoration(
         color: _themeService.isDarkMode ? Colors.grey[800] : Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
         ),
@@ -3302,7 +4005,7 @@ class _MailScreenState extends State<MailScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           onTap: () => _downloadAttachment(messageId, attachment),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -3316,9 +4019,9 @@ class _MailScreenState extends State<MailScreen> {
                       style: const TextStyle(fontSize: 24),
                     ),
                     const Spacer(),
-                    Icon(
+                    const Icon(
                       Icons.download,
-                      color: _themeService.primaryColor,
+                      color: Color(0xFFFFA07A),
                       size: 20,
                     ),
                   ],
@@ -3356,7 +4059,7 @@ class _MailScreenState extends State<MailScreen> {
   // Télécharger une pièce jointe
   Future<void> _downloadAttachment(String messageId, EmailAttachment attachment) async {
     try {
-      _showSnackBar('Téléchargement de ${attachment.name}...', _themeService.primaryColor);
+      _showSnackBar('Téléchargement de ${attachment.name}...', const Color(0xFFFFA07A));
       
       final bytes = await _outlookService.downloadAttachment(messageId, attachment.id);
       
@@ -3397,46 +4100,64 @@ class _MailScreenState extends State<MailScreen> {
   String _cleanStringForDisplay(String text) {
     if (text.isEmpty) return text;
     
-    // Supprimer les caractères UTF-16 invalides (surrogates non appariés)
-    return String.fromCharCodes(
-      text.runes.where((rune) {
-        // Garder seulement les caractères valides
-        return rune >= 0x20 && rune != 0xFFFD;
-      }),
-    );
+    try {
+      // Première étape : nettoyer les caractères problématiques avec une regex sécurisée
+      String cleaned = text.replaceAll(RegExp(r'[\uD800-\uDFFF]'), ''); // Supprimer les surrogates
+      cleaned = cleaned.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F]'), ''); // Supprimer les caractères de contrôle sauf \n \r \t
+      cleaned = cleaned.replaceAll(RegExp(r'\uFFFD'), ''); // Supprimer les caractères de remplacement
+      
+      // Deuxième étape : nettoyer avec runes seulement si la première étape a réussi
+      if (cleaned.isEmpty) return '';
+      
+      final cleanedRunes = <int>[];
+      for (final rune in cleaned.runes) {
+        if (rune >= 0x20 && rune < 0xD800 || rune > 0xDFFF && rune <= 0x10FFFF) {
+          cleanedRunes.add(rune);
+        } else if (rune == 0x09 || rune == 0x0A || rune == 0x0D) {
+          cleanedRunes.add(rune);
+        }
+      }
+      
+      return cleanedRunes.isEmpty ? '' : String.fromCharCodes(cleanedRunes);
+    } catch (e) {
+      // En cas d'erreur, retourner un placeholder sûr
+      return '[Contenu non valide]';
+    }
   }
 
   // Afficher le dialogue de nouveau mail
   void _showNewEmailDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _OutlookEmailDialog(
-        themeService: _themeService,
-        type: EmailDialogType.compose,
-        outlookService: _outlookService,
-        onSend: (to, subject, body, attachments) async {
-          await _sendEmail(to, subject, body, attachments);
-          Navigator.of(context).pop();
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _OutlookEmailDialogWithAI(
+          themeService: _themeService,
+          isNewMessage: true,
+          outlookService: _outlookService,
+          onSend: (to, subject, body, attachments) async {
+            await _sendEmail(to, subject, body, attachments);
+            Navigator.of(context).pop();
+          },
+        ),
       ),
     );
   }
 
   // Répondre à un email
   void _replyToEmail(EmailMessage email) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _OutlookEmailDialog(
-        themeService: _themeService,
-        type: EmailDialogType.reply,
-        replyTo: email,
-        outlookService: _outlookService,
-        onSend: (to, subject, body, attachments) async {
-          await _sendEmail(to, subject, body, attachments);
-          Navigator.of(context).pop();
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _OutlookEmailDialog(
+          themeService: _themeService,
+          type: EmailDialogType.reply,
+          replyTo: email,
+          outlookService: _outlookService,
+          onSend: (to, subject, body, attachments) async {
+            await _sendEmail(to, subject, body, attachments);
+            Navigator.of(context).pop();
+          },
+        ),
       ),
     );
   }
@@ -3547,9 +4268,9 @@ class _MailScreenState extends State<MailScreen> {
         backgroundColor: _themeService.surfaceColor,
         title: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.attach_file,
-              color: _themeService.primaryColor,
+              color: Color(0xFFFFA07A),
               size: 24,
             ),
             const SizedBox(width: 8),
@@ -3579,13 +4300,13 @@ class _MailScreenState extends State<MailScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: _themeService.isDarkMode ? Colors.grey[800] : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.attach_file,
-                      color: _themeService.primaryColor,
+                      color: Color(0xFFFFA07A),
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -3617,7 +4338,7 @@ class _MailScreenState extends State<MailScreen> {
             onPressed: () => Navigator.of(context).pop(),
             child: Text(
               'Fermer',
-              style: TextStyle(color: _themeService.primaryColor),
+              style: const TextStyle(color: Color(0xFFFFA07A)),
             ),
           ),
         ],
@@ -3655,7 +4376,7 @@ class _MailScreenState extends State<MailScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.purple.shade400,
+                        const Color(0xFFFFA07A),
                         Colors.blue.shade400,
                       ],
                     ),
@@ -3713,29 +4434,49 @@ class _MailScreenState extends State<MailScreen> {
                 Container(
                   constraints: const BoxConstraints(minHeight: 120, maxHeight: 200),
                   decoration: BoxDecoration(
+                    color: _themeService.isDarkMode 
+                      ? Colors.grey[850]! 
+                      : Colors.white,
                     border: Border.all(
                       color: _themeService.isDarkMode 
                         ? Colors.grey[600]! 
                         : Colors.grey[300]!,
                     ),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: TextField(
-                    controller: specificationsController,
-                    maxLines: null,
-                    enabled: !isGenerating,
-                    decoration: InputDecoration(
-                      hintText: 'Ex: Répondre poliment que je suis intéressé et proposer un rendez-vous...',
-                      hintStyle: TextStyle(
-                        color: _themeService.subtitleColor,
-                        fontSize: 13,
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: TextField(
+                      controller: specificationsController,
+                      maxLines: null,
+                      enabled: !isGenerating,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        hintText: 'Ex: Répondre poliment que je suis intéressé et proposer un rendez-vous...',
+                        hintStyle: TextStyle(
+                          color: _themeService.subtitleColor,
+                          fontSize: 13,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
                       ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                    style: TextStyle(
-                      color: _themeService.textColor,
-                      fontSize: 14,
+                      style: TextStyle(
+                        color: _themeService.textColor,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -3749,7 +4490,7 @@ class _MailScreenState extends State<MailScreen> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.purple.shade400,
+                            const Color(0xFFFFA07A),
                           ),
                         ),
                       ),
@@ -3814,26 +4555,32 @@ class _MailScreenState extends State<MailScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isGenerating 
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: isGenerating 
                     ? Colors.grey 
-                    : Colors.purple.shade400,
-                  foregroundColor: Colors.white,
+                    : const Color(0xFFFFA07A),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isGenerating ? Colors.grey : const Color(0xFFFFA07A),
+                      width: 2,
+                    ),
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.auto_awesome, size: 18),
-                    const SizedBox(width: 8),
-                    Text(isGenerating ? 'Génération...' : 'Générer'),
-                  ],
-                ),
+                child: isGenerating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFA07A)),
+                      ),
+                    )
+                  : const Text('Générer'),
               ),
             ],
           );
@@ -3920,18 +4667,20 @@ Génère uniquement le contenu de la réponse, sans formule de début ni de fin 
 
   // Répondre à un email avec le contenu généré par l'IA
   void _replyToEmailWithAI(EmailMessage email, String aiGeneratedBody) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _OutlookEmailDialogWithAI(
-        themeService: _themeService,
-        replyTo: email,
-        aiGeneratedBody: aiGeneratedBody,
-        outlookService: _outlookService,
-        onSend: (to, subject, body, attachments) async {
-          await _sendEmail(to, subject, body, attachments);
-          Navigator.of(context).pop();
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _OutlookEmailDialogWithAI(
+          themeService: _themeService,
+          replyTo: email,
+          aiGeneratedBody: aiGeneratedBody,
+          isNewMessage: false,
+          outlookService: _outlookService,
+          onSend: (to, subject, body, attachments) async {
+            await _sendEmail(to, subject, body, attachments);
+            Navigator.of(context).pop();
+          },
+        ),
       ),
     );
   }
